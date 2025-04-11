@@ -5,7 +5,6 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import YoutubeConverter from './components/YoutubeConverter';
 import Image from 'next/image';
-import Link from 'next/link';
 
 export default function Home() {
   const { translations } = useLanguage();
@@ -35,13 +34,13 @@ export default function Home() {
               </div>
               <div className="w-full md:w-1/2 mt-8 md:mt-0">
                 <div className="relative h-64 md:h-80 lg:h-96 w-full">
-        <Image
+                  <Image
                     src="/images/youtube-mp3-hero.svg" 
                     alt="YouTube to MP3 Converter" 
                     className="object-contain"
                     fill
-          priority
-        />
+                    priority
+                  />
                 </div>
               </div>
             </div>
@@ -227,8 +226,8 @@ export default function Home() {
               </h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition duration-300 hover:shadow-lg">
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {faq.q1}
                 </h3>
@@ -237,7 +236,7 @@ export default function Home() {
                 </p>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition duration-300 hover:shadow-lg">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {faq.q2}
                 </h3>
@@ -246,7 +245,7 @@ export default function Home() {
                 </p>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition duration-300 hover:shadow-lg">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {faq.q3}
                 </h3>
@@ -255,7 +254,7 @@ export default function Home() {
                 </p>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition duration-300 hover:shadow-lg">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {faq.q4}
                 </h3>
@@ -264,7 +263,7 @@ export default function Home() {
                 </p>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition duration-300 hover:shadow-lg">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {faq.q5}
                 </h3>
@@ -273,7 +272,7 @@ export default function Home() {
                 </p>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition duration-300 hover:shadow-lg">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {faq.q6}
                 </h3>
@@ -283,45 +282,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
-        
-        {/* About YouTube to MP3 */}
-        <section className="py-16 bg-white dark:bg-gray-800">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="prose prose-blue dark:prose-invert max-w-none">
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white text-center mb-8">
-                About YouTube to MP3 Converter
-              </h2>
-              
-              <p className="text-gray-600 dark:text-gray-300">
-                A YouTube MP3 converter is a powerful tool that allows you to extract audio from YouTube videos and save it as an MP3 file. Our <strong>YouTube converter MP3</strong> service is designed to provide the highest quality audio extraction while maintaining ease of use.
-              </p>
-              
-              <p className="text-gray-600 dark:text-gray-300 mt-4">
-                When you <strong>convert YouTube to MP3</strong> using our service, you get access to various benefits that other converters may not offer. Our platform ensures that the conversion process is fast, efficient, and provides you with high-quality MP3 files that you can listen to anytime, anywhere.
-              </p>
-              
-              <p className="text-gray-600 dark:text-gray-300 mt-4">
-                Using our <strong>YouTube MP3 converter</strong> is incredibly simple. Just copy the URL of the YouTube video you want to convert, paste it into our converter box, and click the convert button. Within seconds, you'll have a high-quality MP3 file ready for download.
-              </p>
-              
-              <p className="text-gray-600 dark:text-gray-300 mt-4">
-                Our <strong>YouTube to MP3</strong> service supports videos of various lengths and qualities. Whether you're looking to convert a short music video or a lengthy podcast, our converter can handle it all. The resulting MP3 files maintain the original audio quality of the YouTube video, ensuring you get the best possible listening experience.
-              </p>
-              
-              <p className="text-gray-600 dark:text-gray-300 mt-4">
-                Unlike other <strong>MP3 converters</strong>, our service doesn't require any registration or software installation. You can start converting YouTube videos to MP3 format immediately, without any unnecessary steps or complications.
-              </p>
-              
-              <p className="text-gray-600 dark:text-gray-300 mt-4">
-                Security is a top priority for our <strong>YouTube converter MP3</strong> service. We don't store your converted files or track your usage, ensuring your privacy is protected at all times. Additionally, our platform is regularly updated to provide the best possible conversion experience.
-              </p>
-              
-              <p className="text-gray-600 dark:text-gray-300 mt-4">
-                Whether you're a music enthusiast looking to create a personal playlist or someone who wants to listen to your favorite YouTube content offline, our <strong>YouTube to MP3 converter</strong> is the perfect tool for you. Try it today and experience the convenience of high-quality audio extraction.
-              </p>
-            </div>
-        </div>
         </section>
       </main>
       

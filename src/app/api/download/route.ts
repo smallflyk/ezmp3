@@ -6,6 +6,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { createReadStream } from 'fs';
+import { ReadableStream } from 'stream/web';
 
 // Get configuration from environment variables
 const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -183,7 +184,7 @@ if __name__ == '__main__':
     const fileStream = createReadStream(outputFilePath);
     
     // Create response with appropriate headers
-    const response = new NextResponse(fileStream as any, {
+    const response = new NextResponse(fileStream as unknown as ReadableStream, {
       headers: {
         'Content-Type': 'audio/mpeg',
         'Content-Disposition': `attachment; filename="${videoId}.mp3"`,

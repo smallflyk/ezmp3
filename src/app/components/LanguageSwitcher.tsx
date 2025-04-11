@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 
 export default function LanguageSwitcher() {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 type VideoAnalysisProps = {
   url: string;
@@ -24,13 +24,7 @@ export default function VideoAnalysis({ url, isVisible }: VideoAnalysisProps) {
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
-  useEffect(() => {
-    if (isVisible && url) {
-      fetchAnalysis();
-    }
-  }, [isVisible, url]);
-
-  const fetchAnalysis = async () => {
+  const fetchAnalysis = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -48,7 +42,13 @@ export default function VideoAnalysis({ url, isVisible }: VideoAnalysisProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [url]);
+
+  useEffect(() => {
+    if (isVisible && url) {
+      fetchAnalysis();
+    }
+  }, [isVisible, url, fetchAnalysis]);
 
   if (!isVisible) return null;
   

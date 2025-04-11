@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { exec } from 'youtube-dl-exec';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { writeFile } from 'fs/promises';
@@ -23,6 +22,15 @@ const openai = new OpenAI({
 
 // YouTube URL validation regex
 const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
+
+interface VideoInfo {
+  title: string;
+  description: string;
+  tags: string[];
+  upload_date: string;
+  duration: number;
+  categories: string[];
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -127,7 +135,7 @@ if __name__ == '__main__':
       });
 
       // Extract video metadata
-      const { title = '', description = '', tags = [], upload_date = '', duration = 0, categories = [] } = videoInfo as any;
+      const { title = '', description = '', tags = [], upload_date = '', duration = 0, categories = [] } = videoInfo as VideoInfo;
 
       // Use OpenRouter API to analyze video content
       const content = `
