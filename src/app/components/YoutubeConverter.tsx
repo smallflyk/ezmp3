@@ -82,57 +82,39 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        // 视频信息
-        const title = data.title || 'Youtube Audio';
-        const videoId = data.videoId;
+        // 显示提示消息
+        alert(language === 'zh' 
+          ? '即将打开转换网站，请在网站上完成下载。' 
+          : 'The conversion website will open, please complete the download there.');
         
-        // 尝试多种下载方法
-        
-        // 方法1: 创建下载iframe (隐藏的iframe来处理下载)
-        try {
-          const downloadFrame = document.createElement('iframe');
-          downloadFrame.style.display = 'none';
-          downloadFrame.src = data.downloadUrl;
-          document.body.appendChild(downloadFrame);
+        // 直接使用下载选项
+        if (data.downloadOptions) {
+          const options = data.downloadOptions;
           
-          // 60秒后移除iframe
-          setTimeout(() => {
-            if (document.body.contains(downloadFrame)) {
-              document.body.removeChild(downloadFrame);
-            }
-          }, 60000);
-        } catch (frameError) {
-          console.error("iframe下载方法失败:", frameError);
-        }
-        
-        // 方法2: 使用window.open打开下载链接
-        try {
-          window.open(data.downloadUrl, '_blank');
-        } catch (windowError) {
-          console.error("window.open下载方法失败:", windowError);
-        }
-        
-        // 方法3: 使用直接链接
-        try {
-          // 延迟1秒执行，给前两种方法一些时间
-          setTimeout(() => {
-            if (data.downloadOptions) {
-              // 尝试不同的下载选项 - 逐一打开
-              const options = data.downloadOptions;
-              
-              if (options.ytmp3cc) {
-                window.open(options.ytmp3cc, '_blank');
-              } else if (options.savemp3) {
-                window.open(options.savemp3, '_blank');
-              } else if (options.mp3download) {
-                window.open(options.mp3download, '_blank');
-              } else if (options.rapidApi && options.rapidApi.startsWith('http')) {
-                window.open(options.rapidApi, '_blank');
-              }
-            }
-          }, 1500);
-        } catch (linkError) {
-          console.error("链接下载方法失败:", linkError);
+          // 尝试打开Y2mate（最可靠的转换网站之一）
+          if (options.y2mate) {
+            window.open(options.y2mate, '_blank');
+          } 
+          // 备用选项
+          else if (options.onlinevideoconverter) {
+            window.open(options.onlinevideoconverter, '_blank');
+          }
+          else if (options.converterbear) {
+            window.open(options.converterbear, '_blank');
+          }
+          else if (options.ytmp3download) {
+            window.open(options.ytmp3download, '_blank');
+          }
+          // 如果有RapidAPI提供的直接链接，尝试使用
+          else if (options.rapidApi && options.rapidApi.startsWith('http')) {
+            window.open(options.rapidApi, '_blank');
+          }
+          // 如果没有可用选项，显示错误
+          else {
+            throw new Error(language === 'zh' ? '没有可用的下载选项' : 'No download options available');
+          }
+        } else {
+          throw new Error(language === 'zh' ? '没有可用的下载选项' : 'No download options available');
         }
         
         // 显示成功消息
