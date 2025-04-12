@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import React from 'react';
 import { useLanguage } from './LanguageProvider';
 import VideoAnalysis from './VideoAnalysis';
 
@@ -75,8 +75,21 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       
       if (data.success) {
         if (data.fallback) {
-          // 使用回退服务
-          window.location.href = data.services[0];
+          // 创建一个iframe来加载第三方服务，而不是跳转
+          const proxyFrame = document.createElement('iframe');
+          proxyFrame.style.display = 'none';
+          proxyFrame.src = data.services[0];
+          document.body.appendChild(proxyFrame);
+          
+          // 设置超时移除iframe
+          setTimeout(() => {
+            if (document.body.contains(proxyFrame)) {
+              document.body.removeChild(proxyFrame);
+            }
+          }, 60000); // 1分钟后移除
+          
+          // 向用户显示下载开始消息
+          alert(language === 'zh' ? '下载已开始，请稍候...' : 'Download started, please wait...');
         } else {
           // 使用直接URL
           const downloadLink = document.createElement('a');
