@@ -15,7 +15,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "uuid": "^11.1.0",
-    "youtube-dl-exec": "^3.0.20"
+    "youtube-dl-exec": "^3.0.20",
+    "ytdl-core-browser": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
