@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import ytdl from 'ytdl-core';
 
 // YouTube URL validation regex
 const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
@@ -31,21 +32,49 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 定义可用的下载服务列表
-    const downloadServices = [
-      `https://api.vevioz.com/api/button/mp3/${videoId}`,
-      `https://api.mp3download.to/v1/youtube/${videoId}`,
-      `https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${videoId}&f=mp3`
-    ];
-
-    // 使用第一个服务进行重定向
-    return NextResponse.redirect(downloadServices[0], {
-      status: 302,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+    // 获取视频信息
+    const info = await ytdl.getInfo(url);
+    const title = info.videoDetails.title.replace(/[^\w\s]/gi, ''); // 清理标题中的特殊字符
+    
+    // 获取最高质量的音频格式
+    const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
+    
+    if (!audioFormat) {
+      return NextResponse.json(
+        { error: '无法找到合适的音频格式' },
+        { status: 400 }
+      );
+    }
+    
+    // 设置响应头
+    const headers = new Headers();
+    headers.set('Content-Disposition', `attachment; filename="${title}.mp3"`);
+    headers.set('Content-Type', 'audio/mpeg');
+    
+    // 创建响应流
+    const stream = ytdl(url, { format: audioFormat });
+    
+    // 使用Web Streams API
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        stream.on('data', (chunk) => {
+          controller.enqueue(chunk);
+        });
+        
+        stream.on('end', () => {
+          controller.close();
+        });
+        
+        stream.on('error', (error) => {
+          controller.error(error);
+        });
       }
+    });
+    
+    // 返回流式响应
+    return new NextResponse(readableStream, {
+      status: 200,
+      headers
     });
 
   } catch (error: unknown) {
