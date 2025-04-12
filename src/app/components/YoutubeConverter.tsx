@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import * as React from 'react';
 import { useLanguage } from './LanguageProvider';
 import VideoAnalysis from './VideoAnalysis';
 
@@ -20,12 +20,12 @@ interface InputChangeEvent extends React.ChangeEvent<HTMLInputElement> {
 }
 
 export default function YoutubeConverter({ translations }: ConverterProps) {
-  const [url, setUrl] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [downloadUrl, setDownloadUrl] = useState('');
-  const [showAnalysis, setShowAnalysis] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [url, setUrl] = React.useState('');
+  const [status, setStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [downloadUrl, setDownloadUrl] = React.useState('');
+  const [showAnalysis, setShowAnalysis] = React.useState(false);
+  const [downloading, setDownloading] = React.useState(false);
+  const [downloadError, setDownloadError] = React.useState<string | null>(null);
   const { language } = useLanguage();
   
   const isValidYoutubeUrl = (url: string) => {
@@ -65,59 +65,14 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       setStatus('loading');
       setDownloadError(null);
       
-      const response = await fetch(`/api/download?url=${encodeURIComponent(url)}`);
+      // 直接下载而不是异步请求
+      window.location.href = `/api/download?url=${encodeURIComponent(url)}`;
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '下载失败');
-      }
-      
-      // 检查是否是 JSON 响应（外部服务）或二进制响应（直接下载）
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        // 处理外部服务的响应
-        const data = await response.json();
-        
-        if (data.externalService) {
-          // 在新标签页打开外部下载链接
-          window.open(data.downloadUrl, '_blank');
-          setStatus('success');
-          return;
-        }
-      } else {
-        // 处理直接下载的二进制响应
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        
-        // 创建下载链接
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = downloadUrl;
-        
-        // 从 Content-Disposition 标头获取文件名
-        const contentDisposition = response.headers.get('content-disposition');
-        let filename = 'youtube-audio.mp3';
-        
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
-          }
-        }
-        
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        
-        // 清理
-        setTimeout(() => {
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(downloadUrl);
-        }, 100);
-      }
-      
-      setStatus('success');
+      // 由于是直接下载，我们在一定时间后将状态设置回成功
+      setTimeout(() => {
+        setStatus('success');
+        setDownloading(false);
+      }, 2000);
     } catch (error) {
       console.error('Download error:', error);
       setStatus('error');
@@ -126,7 +81,6 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           ? `下载失败: ${error instanceof Error ? error.message : '未知错误'}`
           : `Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-    } finally {
       setDownloading(false);
     }
   };

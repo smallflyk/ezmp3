@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import ytdl from 'ytdl-core';
 
 // Get configuration from environment variables
 const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -37,24 +38,61 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // 使用 y2mate.com 作为备用下载链接
-      // 这个服务提供免费的 YouTube 下载功能
-      const y2mateUrl = `https://www.y2mate.com/youtube/${videoId}`;
+      // 尝试获取视频信息
+      const videoInfo = await ytdl.getInfo(url);
+      const title = videoInfo.videoDetails.title;
+      const sanitizedTitle = title.replace(/[^\w\s]/gi, ''); // 移除特殊字符
+      
+      // 获取音频格式
+      const audioFormats = ytdl.filterFormats(videoInfo.formats, 'audioonly');
+      if (audioFormats.length === 0) {
+        throw new Error('No audio formats available');
+      }
+      
+      // 选择最佳音频格式
+      const bestFormat = audioFormats.reduce((prev, current) => {
+        return (prev.audioBitrate || 0) > (current.audioBitrate || 0) ? prev : current;
+      });
+
+      // 创建一个 ReadableStream
+      const stream = ytdl.downloadFromInfo(videoInfo, { format: bestFormat });
+
+      // 从流中读取数据
+      return new Promise((resolve, reject) => {
+        const chunks: Uint8Array[] = [];
+        
+        stream.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        
+        stream.on('end', () => {
+          try {
+            const buffer = Buffer.concat(chunks);
+            
+            // 返回音频文件
+            resolve(new NextResponse(buffer, {
+              headers: {
+                'Content-Type': 'audio/mpeg',
+                'Content-Disposition': `attachment; filename="${sanitizedTitle || videoId}.mp3"`,
+                'Content-Length': buffer.length.toString(),
+              }
+            }));
+          } catch (error) {
+            reject(error);
+          }
+        });
+        
+        stream.on('error', (error) => {
+          reject(error);
+        });
+      });
+    } catch (err) {
+      console.error('Error processing download:', err);
       
       return NextResponse.json(
         { 
-          message: "使用外部下载服务",
-          videoId,
-          downloadUrl: y2mateUrl,
-          externalService: true
+          error: `下载失败: ${err instanceof Error ? err.message : '未知错误'}`
         },
-        { status: 200 }
-      );
-    } catch (err) {
-      console.error('Error processing download:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      return NextResponse.json(
-        { error: `Failed to download: ${errorMessage}` },
         { status: 500 }
       );
     }
