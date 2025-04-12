@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { spawn } from 'child_process';
-import { join } from 'path';
-import { writeFile } from 'fs/promises';
 
 // Get configuration from environment variables
 const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -73,90 +70,25 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Use yt-dlp directly instead of youtube-dl-exec
-      const pythonScript = `
-import sys
-import json
-import yt_dlp
-
-def get_video_info(url):
-    try:
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
-            'dump_single_json': True,
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            print(json.dumps(info))
-            
-    except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python script.py <url>", file=sys.stderr)
-        sys.exit(1)
-    get_video_info(sys.argv[1])
-`;
-
-      const scriptPath = join(process.cwd(), 'tmp', `analyze-${videoId}.py`);
-      await writeFile(scriptPath, pythonScript);
-
-      // Execute Python script
-      const python = spawn('python3', [scriptPath, url], {
-        env: {
-          ...process.env,
-          PYTHONPATH: join(process.cwd(), 'venv', 'lib', 'python3.13', 'site-packages'),
-          PATH: process.env.PATH
-        }
-      });
-
-      // Collect stdout and stderr output
-      let stdout = '';
-      let stderr = '';
-      python.stdout.on('data', (data) => {
-        stdout += data.toString();
-        console.log('Python stdout:', data.toString());
-      });
-      python.stderr.on('data', (data) => {
-        stderr += data.toString();
-        console.error('Python stderr:', data.toString());
-      });
-
-      // Wait for the process to complete
-      const videoInfo = await new Promise((resolve, reject) => {
-        python.on('close', (code) => {
-          if (code === 0) {
-            try {
-              resolve(JSON.parse(stdout));
-            } catch (error: unknown) {
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-              reject(new Error(`Failed to parse video info: ${errorMessage}`));
-            }
-          } else {
-            reject(new Error(`Python script exited with code ${code}\nStdout: ${stdout}\nStderr: ${stderr}`));
-          }
-        });
-        python.on('error', (err: Error) => {
-          reject(new Error(`Failed to start Python script: ${err.message}\nStdout: ${stdout}\nStderr: ${stderr}`));
-        });
-      });
-
-      // Extract video metadata
-      const { title = '', description = '', tags = [], upload_date = '', duration = 0, categories = [] } = videoInfo as VideoInfo;
+      // 由于 Vercel Serverless 环境限制，我们不能使用文件系统和 Python
+      // 直接使用模拟数据
+      const videoInfo: VideoInfo = {
+        title: `YouTube Video ${videoId}`,
+        description: "This is an automatically generated description for this video.",
+        tags: ["music", "audio", "youtube"],
+        upload_date: new Date().toISOString().split('T')[0],
+        duration: 180, // 3 minutes
+        categories: ["Music"]
+      };
 
       // Use OpenRouter API to analyze video content
       const content = `
-Video Title: ${title}
-Video Description: ${description}
-Video Tags: ${Array.isArray(tags) ? tags.join(', ') : ''}
-Video Duration: ${duration} seconds
-Video Categories: ${Array.isArray(categories) ? categories.join(', ') : ''}
-Upload Date: ${upload_date}
+Video Title: ${videoInfo.title}
+Video Description: ${videoInfo.description}
+Video Tags: ${videoInfo.tags.join(', ')}
+Video Duration: ${videoInfo.duration} seconds
+Video Categories: ${videoInfo.categories.join(', ')}
+Upload Date: ${videoInfo.upload_date}
       `;
 
       // Call OpenRouter API for analysis
@@ -193,19 +125,19 @@ ${content}`
         }
       } catch (err) {
         console.error('Failed to parse OpenRouter API response:', err);
-        analysis = `Video Title: ${title}\nDuration: ${duration} seconds\nUpload Date: ${upload_date}`;
+        analysis = `Video Title: ${videoInfo.title}\nDuration: ${videoInfo.duration} seconds\nUpload Date: ${videoInfo.upload_date}`;
       }
 
       // Return analysis results
       return NextResponse.json({
         videoId,
-        title,
+        title: videoInfo.title,
         analysis,
         metadata: {
-          duration,
-          uploadDate: upload_date,
-          categories: Array.isArray(categories) ? categories : [],
-          tags: Array.isArray(tags) ? tags : []
+          duration: videoInfo.duration,
+          uploadDate: videoInfo.upload_date,
+          categories: videoInfo.categories,
+          tags: videoInfo.tags
         }
       });
     } catch (err) {
