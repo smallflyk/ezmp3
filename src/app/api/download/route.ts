@@ -1,10 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ytdl from 'ytdl-core';
-
-// Get configuration from environment variables
-const apiKey = process.env.OPENROUTER_API_KEY || '';
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ezmp3.vercel.app';
-const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'EZ MP3 Converter';
 
 // YouTube URL validation regex
 const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
@@ -38,54 +32,24 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // 尝试获取视频信息
-      const videoInfo = await ytdl.getInfo(url);
-      const title = videoInfo.videoDetails.title;
-      const sanitizedTitle = title.replace(/[^\w\s]/gi, ''); // 移除特殊字符
+      // 获取视频基本信息
+      const videoInfoUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const videoInfoResponse = await fetch(videoInfoUrl);
+      let title = videoId;
       
-      // 获取音频格式
-      const audioFormats = ytdl.filterFormats(videoInfo.formats, 'audioonly');
-      if (audioFormats.length === 0) {
-        throw new Error('No audio formats available');
+      if (videoInfoResponse.ok) {
+        const videoInfo = await videoInfoResponse.json();
+        title = videoInfo.title || videoId;
       }
       
-      // 选择最佳音频格式
-      const bestFormat = audioFormats.reduce((prev, current) => {
-        return (prev.audioBitrate || 0) > (current.audioBitrate || 0) ? prev : current;
-      });
-
-      // 创建一个 ReadableStream
-      const stream = ytdl.downloadFromInfo(videoInfo, { format: bestFormat });
-
-      // 从流中读取数据
-      return new Promise((resolve, reject) => {
-        const chunks: Uint8Array[] = [];
-        
-        stream.on('data', (chunk) => {
-          chunks.push(chunk);
-        });
-        
-        stream.on('end', () => {
-          try {
-            const buffer = Buffer.concat(chunks);
-            
-            // 返回音频文件
-            resolve(new NextResponse(buffer, {
-              headers: {
-                'Content-Type': 'audio/mpeg',
-                'Content-Disposition': `attachment; filename="${sanitizedTitle || videoId}.mp3"`,
-                'Content-Length': buffer.length.toString(),
-              }
-            }));
-          } catch (error) {
-            reject(error);
-          }
-        });
-        
-        stream.on('error', (error) => {
-          reject(error);
-        });
-      });
+      const sanitizedTitle = title.replace(/[^\w\s]/gi, ''); // 移除特殊字符
+      
+      // 使用可靠的第三方服务
+      const mp3ServiceUrl = `https://www.yt-download.org/api/button/mp3/${videoId}`;
+      
+      // 重定向到可靠的第三方服务，让用户直接在那里下载
+      return NextResponse.redirect(mp3ServiceUrl, { status: 302 });
+      
     } catch (err) {
       console.error('Error processing download:', err);
       
