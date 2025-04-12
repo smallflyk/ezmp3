@@ -32,50 +32,45 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 获取视频信息
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title.replace(/[^\w\s]/gi, ''); // 清理标题中的特殊字符
-    
-    // 获取最高质量的音频格式
-    const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
-    
-    if (!audioFormat) {
-      return NextResponse.json(
-        { error: '无法找到合适的音频格式' },
-        { status: 400 }
-      );
-    }
-    
-    // 设置响应头
-    const headers = new Headers();
-    headers.set('Content-Disposition', `attachment; filename="${title}.mp3"`);
-    headers.set('Content-Type', 'audio/mpeg');
-    
-    // 创建响应流
-    const stream = ytdl(url, { format: audioFormat });
-    
-    // 使用Web Streams API
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        stream.on('data', (chunk) => {
-          controller.enqueue(chunk);
-        });
-        
-        stream.on('end', () => {
-          controller.close();
-        });
-        
-        stream.on('error', (error) => {
-          controller.error(error);
-        });
+    try {
+      // 获取视频信息
+      const info = await ytdl.getInfo(url);
+      const title = info.videoDetails.title.replace(/[^\w\s]/gi, '') || videoId; 
+      
+      // 获取最佳音频格式的URL
+      const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
+      
+      if (!audioFormat) {
+        return NextResponse.json(
+          { error: '无法找到合适的音频格式' },
+          { status: 400 }
+        );
       }
-    });
-    
-    // 返回流式响应
-    return new NextResponse(readableStream, {
-      status: 200,
-      headers
-    });
+      
+      // 创建包含下载信息的响应
+      return NextResponse.json({
+        success: true,
+        title,
+        audioUrl: audioFormat.url,
+        contentType: audioFormat.mimeType || 'audio/mp4',
+        videoId
+      });
+    } catch (ytError) {
+      console.error('YouTube处理错误:', ytError);
+      
+      // 回退方案：使用第三方服务
+      const fallbackServices = [
+        `https://api.vevioz.com/api/button/mp3/${videoId}`,
+        `https://api.mp3download.to/v1/youtube/${videoId}`,
+        `https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${videoId}&f=mp3`
+      ];
+      
+      return NextResponse.json({
+        success: true,
+        fallback: true,
+        services: fallbackServices
+      });
+    }
 
   } catch (error: unknown) {
     console.error('下载处理出错:', error);

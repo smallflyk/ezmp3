@@ -65,14 +65,34 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       setStatus('loading');
       setDownloadError(null);
       
-      // 直接下载而不是异步请求
-      window.location.href = `/api/download?url=${encodeURIComponent(url)}`;
+      // 发送API请求获取下载信息
+      const response = await fetch(`/api/download?url=${encodeURIComponent(url)}`);
+      const data = await response.json();
       
-      // 由于是直接下载，我们在一定时间后将状态设置回成功
-      setTimeout(() => {
+      if (!response.ok) {
+        throw new Error(data.error || 'Download failed');
+      }
+      
+      if (data.success) {
+        if (data.fallback) {
+          // 使用回退服务
+          window.location.href = data.services[0];
+        } else {
+          // 使用直接URL
+          const downloadLink = document.createElement('a');
+          downloadLink.href = data.audioUrl;
+          downloadLink.download = `${data.title || 'youtube-audio'}.mp3`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+        
         setStatus('success');
-        setDownloading(false);
-      }, 2000);
+      } else {
+        throw new Error(data.error || 'Download failed');
+      }
+      
+      setDownloading(false);
     } catch (error) {
       console.error('Download error:', error);
       setStatus('error');
