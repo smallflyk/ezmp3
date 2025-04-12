@@ -37,13 +37,16 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // 由于 Vercel Serverless 环境限制，我们不能使用文件系统
-      // 告知用户当前的限制
+      // 使用 y2mate.com 作为备用下载链接
+      // 这个服务提供免费的 YouTube 下载功能
+      const y2mateUrl = `https://www.y2mate.com/youtube/${videoId}`;
+      
       return NextResponse.json(
         { 
-          message: "本演示版本不支持实际下载。在生产环境中，您需要设置一个适当的服务器来处理文件下载。",
+          message: "使用外部下载服务",
           videoId,
-          demo: true
+          downloadUrl: y2mateUrl,
+          externalService: true
         },
         { status: 200 }
       );

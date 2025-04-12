@@ -62,6 +62,15 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
+          
+          // 处理外部服务下载链接
+          if (data.externalService && data.downloadUrl) {
+            // 打开外部下载服务链接
+            window.open(data.downloadUrl, '_blank');
+            setStatus('success');
+            return;
+          }
+          
           if (data.demo) {
             alert(data.message || '这是演示版本，不支持实际下载。');
             setStatus('success');

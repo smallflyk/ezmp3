@@ -55,6 +55,9 @@ export default function Home() {
               <p className="mt-4 text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
                 {language === 'zh' ? '只需几秒钟即可将任何 YouTube 视频转换为高质量的 MP3 格式。只需在下方粘贴 YouTube URL 并点击转换。' : 'Convert any YouTube video to high-quality MP3 format in just a few seconds. Simply paste the YouTube URL below and click convert.'}
               </p>
+              <p className="mt-4 text-amber-600 dark:text-amber-400 max-w-3xl mx-auto">
+                {language === 'zh' ? '点击下载后，您将被重定向到外部下载网站。在那里您可以选择音频质量并下载。' : 'After clicking download, you will be redirected to an external download site where you can choose audio quality and download.'}
+              </p>
             </div>
             
             <div className="flex justify-center">
