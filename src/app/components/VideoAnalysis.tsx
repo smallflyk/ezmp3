@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useLanguage } from './LanguageProvider';
+import { useLanguage } from '../hooks/useLanguage';
 
 type VideoAnalysisProps = {
   url: string;

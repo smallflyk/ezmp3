@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({ url })
       };
 
-      console.log('请求RapidAPI:', options);
+      console.log('请求RapidAPI:', { url, headers: options.headers });
       
       const response = await fetch('https://youtube-to-mp335.p.rapidapi.com/api/rapidAPIconverttomp3', options);
       
@@ -59,11 +59,22 @@ export async function GET(request: NextRequest) {
         throw new Error(`API错误: ${data.error}`);
       }
       
+      // 检查直接下载链接并确保其可用
+      let audioUrl = '';
+      if (data.link) {
+        audioUrl = data.link;
+      } else if (data.mp3) {
+        audioUrl = data.mp3;
+      } else {
+        // 如果没有直接链接，使用备用方案
+        throw new Error("未找到有效的下载链接");
+      }
+      
       // RapidAPI成功响应
       return NextResponse.json({
         success: true,
         title: data.title || `YouTube Video ${videoId}`,
-        audioUrl: data.link || data.mp3,
+        audioUrl,
         contentType: 'audio/mp3',
         videoId,
         selectedBitrate: bitrate,
@@ -74,12 +85,22 @@ export async function GET(request: NextRequest) {
     } catch (apiError) {
       console.error('API处理错误:', apiError);
       
-      // 回退方案：使用其他服务或ytdl-core作为备用
+      // 使用直接下载链接作为备用方案
       try {
-        // 这里可以添加其他备用API或方法
-        // 回退到基于videoId的备用服务
+        const directDownloadUrl = `https://dl.youtubemp3.download/api/widget/mp3/${videoId}`;
+        
+        return NextResponse.json({
+          success: true,
+          fallback: true,
+          title: `YouTube Video ${videoId}`,
+          audioUrl: directDownloadUrl,
+          contentType: 'audio/mp3',
+          videoId,
+          selectedBitrate: bitrate
+        });
+      } catch (fallbackError) {
+        // 如果直接下载也失败，使用其他备用服务
         const fallbackServices = [
-          `https://youtube-to-mp335.p.rapidapi.com/api/fallback?videoId=${videoId}&bitrate=${bitrate}`,
           `https://api.vevioz.com/api/button/mp3/${videoId}?bitrate=${bitrate}`,
           `https://loader.to/api/button/?url=https://www.youtube.com/watch?v=${videoId}&f=mp3&bitrate=${bitrate}`
         ];
@@ -90,8 +111,6 @@ export async function GET(request: NextRequest) {
           services: fallbackServices,
           selectedBitrate: bitrate
         });
-      } catch (fallbackError) {
-        throw new Error(`所有转换方法都失败: ${fallbackError}`);
       }
     }
 

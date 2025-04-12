@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useLanguage } from './LanguageProvider';
+import { useLanguage } from '../hooks/useLanguage';
 import VideoAnalysis from './VideoAnalysis';
 
 type ConverterProps = {
@@ -82,7 +82,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        if (data.fallback) {
+        if (data.fallback && data.services) {
           // 创建一个iframe来加载第三方服务，而不是跳转
           const proxyFrame = document.createElement('iframe');
           proxyFrame.style.display = 'none';
@@ -98,14 +98,30 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           
           // 向用户显示下载开始消息
           alert(language === 'zh' ? '下载已开始，请稍候...' : 'Download started, please wait...');
-        } else {
+        } else if (data.audioUrl) {
           // 使用直接URL
+          console.log("开始下载音频:", data.audioUrl);
+          
+          // 创建一个临时链接并触发下载
           const downloadLink = document.createElement('a');
           downloadLink.href = data.audioUrl;
           downloadLink.download = `${data.title || 'youtube-audio'}.mp3`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
+          downloadLink.target = '_blank'; // 添加目标属性
+          
+          // 对于跨域资源，可能需要先获取blob
+          try {
+            // 尝试直接下载
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+          } catch (downloadError) {
+            console.error("直接下载失败，尝试备用方法:", downloadError);
+            
+            // 打开新窗口
+            window.open(data.audioUrl, '_blank');
+          }
+        } else {
+          throw new Error('No download URL provided');
         }
         
         setStatus('success');

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useLanguage } from './components/LanguageProvider';
+import React from 'react';
+import { useLanguage } from './hooks/useLanguage';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import YoutubeConverter from './components/YoutubeConverter';
