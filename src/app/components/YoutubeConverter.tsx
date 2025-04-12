@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguage } from './LanguageProvider';
 import VideoAnalysis from './VideoAnalysis';
 
 type ConverterProps = {
