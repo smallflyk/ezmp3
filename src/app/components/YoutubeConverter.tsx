@@ -82,41 +82,60 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        // 直接使用下载URL - 这将触发服务器端重定向到实际下载链接
-        const downloadUrl = data.downloadUrl;
-        console.log("开始下载音频:", downloadUrl);
+        // 视频信息
+        const title = data.title || 'Youtube Audio';
+        const videoId = data.videoId;
         
+        // 尝试多种下载方法
+        
+        // 方法1: 创建下载iframe (隐藏的iframe来处理下载)
         try {
-          // 方法1: 使用window.location打开下载链接
-          window.open(downloadUrl, '_blank');
+          const downloadFrame = document.createElement('iframe');
+          downloadFrame.style.display = 'none';
+          downloadFrame.src = data.downloadUrl;
+          document.body.appendChild(downloadFrame);
           
-          // 方法2: 如果方法1失败，尝试使用下载选项中的直接链接
+          // 60秒后移除iframe
           setTimeout(() => {
-            if (data.downloadOptions && data.downloadOptions.direct) {
-              const directLink = document.createElement('a');
-              directLink.href = data.downloadOptions.direct;
-              directLink.target = '_blank';
-              directLink.rel = 'noopener noreferrer';
-              document.body.appendChild(directLink);
-              directLink.click();
-              document.body.removeChild(directLink);
+            if (document.body.contains(downloadFrame)) {
+              document.body.removeChild(downloadFrame);
             }
-          }, 1000);
-        } catch (downloadError) {
-          console.error("下载失败，尝试备用方法:", downloadError);
-          
-          // 备用下载方法
-          if (data.downloadOptions) {
-            const options = data.downloadOptions;
-            
-            // 逐一尝试不同的下载选项
-            if (options.rapidApi) window.open(options.rapidApi, '_blank');
-            else if (options.direct) window.open(options.direct, '_blank');
-            else if (options.y2mate) window.open(options.y2mate, '_blank');
-            else if (options.backup) window.open(options.backup, '_blank');
-          }
+          }, 60000);
+        } catch (frameError) {
+          console.error("iframe下载方法失败:", frameError);
         }
         
+        // 方法2: 使用window.open打开下载链接
+        try {
+          window.open(data.downloadUrl, '_blank');
+        } catch (windowError) {
+          console.error("window.open下载方法失败:", windowError);
+        }
+        
+        // 方法3: 使用直接链接
+        try {
+          // 延迟1秒执行，给前两种方法一些时间
+          setTimeout(() => {
+            if (data.downloadOptions) {
+              // 尝试不同的下载选项 - 逐一打开
+              const options = data.downloadOptions;
+              
+              if (options.ytmp3cc) {
+                window.open(options.ytmp3cc, '_blank');
+              } else if (options.savemp3) {
+                window.open(options.savemp3, '_blank');
+              } else if (options.mp3download) {
+                window.open(options.mp3download, '_blank');
+              } else if (options.rapidApi && options.rapidApi.startsWith('http')) {
+                window.open(options.rapidApi, '_blank');
+              }
+            }
+          }, 1500);
+        } catch (linkError) {
+          console.error("链接下载方法失败:", linkError);
+        }
+        
+        // 显示成功消息
         setStatus('success');
       } else {
         throw new Error(data.error || 'Download failed');

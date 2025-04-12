@@ -33,11 +33,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 直接下载模式
+    // 直接下载模式 - 使用更可靠的YouTube MP3下载服务
     if (mode === 'download') {
       try {
-        // 使用一个可靠的直接下载URL
-        const directDownloadUrl = `https://dl.mp3convert.org/yt/${videoId}/${bitrate}/audio.mp3`;
+        // 选择更稳定可靠的下载服务 - 使用ytmp3.cc的服务
+        const directDownloadUrl = `https://ytmp3.cc/download/${videoId}/${bitrate}`;
         
         // 重定向到直接下载链接
         return NextResponse.redirect(directDownloadUrl);
@@ -81,9 +81,9 @@ export async function GET(request: NextRequest) {
       // 准备多种下载选项，确保用户可以下载
       const downloadOptions = {
         rapidApi: data.link || data.mp3 || null,
-        direct: `https://dl.mp3convert.org/yt/${videoId}/${bitrate}/audio.mp3`,
-        y2mate: `https://www.y2mate.com/youtube-mp3/${videoId}`,
-        backup: `https://api.vevioz.com/api/button/mp3/${videoId}?bitrate=${bitrate}`
+        ytmp3cc: `https://ytmp3.cc/download/${videoId}/${bitrate}`,
+        savemp3: `https://savemp3.app/download/?url=https://www.youtube.com/watch?v=${videoId}`,
+        mp3download: `https://mp3download.to/download?v=${videoId}`
       };
       
       // RapidAPI成功响应
@@ -103,9 +103,10 @@ export async function GET(request: NextRequest) {
       
       // 构建备用下载选项
       const downloadOptions = {
-        direct: `https://dl.mp3convert.org/yt/${videoId}/${bitrate}/audio.mp3`,
-        y2mate: `https://www.y2mate.com/youtube-mp3/${videoId}`,
-        backup: `https://api.vevioz.com/api/button/mp3/${videoId}?bitrate=${bitrate}`
+        ytmp3cc: `https://ytmp3.cc/download/${videoId}/${bitrate}`,
+        savemp3: `https://savemp3.app/download/?url=https://www.youtube.com/watch?v=${videoId}`,
+        mp3download: `https://mp3download.to/download?v=${videoId}`,
+        y2mate: `https://www.y2mate.com/youtube-mp3/${videoId}`
       };
       
       return NextResponse.json({

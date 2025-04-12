@@ -1,0 +1,15 @@
+# 排除依赖
+node_modules
+.next
+
+# 排除开发环境文件
+.env.development
+.env.local
+
+# 排除日志
+*.log
+
+# 排除测试文件
+__tests__
+*.test.js
+*.spec.js 
