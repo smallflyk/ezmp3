@@ -96,9 +96,8 @@ const defaultLanguageContext: LanguageContextType = {
 
 const LanguageContext = createContext<LanguageContextType>(defaultLanguageContext);
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
+function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<string>('zh');
-  // 使用条件运算符判断语言，但始终返回 enTranslations
   const translations = enTranslations;
 
   return (
@@ -114,4 +113,6 @@ export function useLanguage() {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
-} 
+}
+
+export default LanguageProvider; 
