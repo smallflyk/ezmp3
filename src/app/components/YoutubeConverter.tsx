@@ -112,8 +112,8 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             // 逐一尝试不同的下载选项
             if (options.rapidApi) window.open(options.rapidApi, '_blank');
             else if (options.direct) window.open(options.direct, '_blank');
+            else if (options.y2mate) window.open(options.y2mate, '_blank');
             else if (options.backup) window.open(options.backup, '_blank');
-            else if (options.yt5s) window.open(options.yt5s, '_blank');
           }
         }
         

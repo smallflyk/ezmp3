@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     if (mode === 'download') {
       try {
         // 使用一个可靠的直接下载URL
-        const directDownloadUrl = `https://dl.youtube4kdownloader.com/download/${videoId}/mp3/128`;
+        const directDownloadUrl = `https://dl.mp3convert.org/yt/${videoId}/${bitrate}/audio.mp3`;
         
         // 重定向到直接下载链接
         return NextResponse.redirect(directDownloadUrl);
@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
       // 准备多种下载选项，确保用户可以下载
       const downloadOptions = {
         rapidApi: data.link || data.mp3 || null,
-        direct: `https://dl.youtube4kdownloader.com/download/${videoId}/mp3/${bitrate}`,
-        yt5s: `https://yt5s.io/api/ajaxSearch?q=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D${videoId}`,
+        direct: `https://dl.mp3convert.org/yt/${videoId}/${bitrate}/audio.mp3`,
+        y2mate: `https://www.y2mate.com/youtube-mp3/${videoId}`,
         backup: `https://api.vevioz.com/api/button/mp3/${videoId}?bitrate=${bitrate}`
       };
       
@@ -103,8 +103,8 @@ export async function GET(request: NextRequest) {
       
       // 构建备用下载选项
       const downloadOptions = {
-        direct: `https://dl.youtube4kdownloader.com/download/${videoId}/mp3/${bitrate}`,
-        yt5s: `https://yt5s.io/api/ajaxSearch?q=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D${videoId}`,
+        direct: `https://dl.mp3convert.org/yt/${videoId}/${bitrate}/audio.mp3`,
+        y2mate: `https://www.y2mate.com/youtube-mp3/${videoId}`,
         backup: `https://api.vevioz.com/api/button/mp3/${videoId}?bitrate=${bitrate}`
       };
       
