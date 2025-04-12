@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore - ytdl-core-browser模块不包含类型定义
-import ytdl from 'ytdl-core-browser';
+// @ts-ignore - 强制导入ytdl-core-browser
+import * as ytdlBrowser from 'ytdl-core-browser';
 
 // YouTube URL validation regex
 const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
@@ -31,41 +31,65 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 确保ytdlBrowser已正确加载
+    if (!ytdlBrowser || typeof ytdlBrowser.getInfo !== 'function') {
+      return NextResponse.json(
+        { error: 'YouTube下载库加载失败' },
+        { status: 500 }
+      );
+    }
+
     try {
       console.log('开始处理视频下载:', url);
       
-      // 获取视频信息
-      const info = await ytdl.getInfo(url);
-      console.log('获取视频信息成功');
+      // 获取视频ID，用于备选方法
+      const videoId = url.match(youtubeUrlRegex)?.[4] || '';
+      
+      // 尝试使用ytdl-core-browser获取信息
+      const info = await ytdlBrowser.getInfo(url);
+      console.log('获取视频信息成功，标题:', info.videoDetails.title);
       
       // 获取视频标题
       const videoTitle = info.videoDetails.title;
-      const sanitizedTitle = videoTitle.replace(/[^\w\s]/gi, '') || 'audio'; 
+      const sanitizedTitle = videoTitle.replace(/[^\w\s]/gi, '') || videoId; 
       
-      // 选择最佳音频格式
-      const audioFormats = ytdl.filterFormats(info.formats, 'audioonly') as AudioFormat[];
-      if (audioFormats.length === 0) {
+      // 查找可用的音频格式
+      console.log('开始筛选音频格式...');
+      const audioFormats = ytdlBrowser.filterFormats(info.formats, 'audioonly');
+      
+      if (!audioFormats || audioFormats.length === 0) {
+        console.error('未找到音频格式');
         throw new Error('没有找到可用的音频格式');
       }
       
-      // 选择质量最好的音频格式
-      const bestAudioFormat = audioFormats.reduce((best: AudioFormat, format: AudioFormat) => {
-        return (format.audioBitrate || 0) > (best.audioBitrate || 0) ? format : best;
-      }, audioFormats[0]);
+      console.log(`找到 ${audioFormats.length} 个音频格式`);
       
-      console.log('选择的音频格式:', bestAudioFormat.mimeType);
-      
-      // 直接从YouTube服务器获取音频
-      const response = await fetch(bestAudioFormat.url);
-      
-      if (!response.ok) {
-        throw new Error(`无法获取音频文件: ${response.status}`);
+      // 选择最佳音频格式
+      let bestFormat = audioFormats[0];
+      for (const format of audioFormats) {
+        if ((format.audioBitrate || 0) > (bestFormat.audioBitrate || 0)) {
+          bestFormat = format;
+        }
       }
       
-      const audioBuffer = await response.arrayBuffer();
+      if (!bestFormat || !bestFormat.url) {
+        throw new Error('无法获取有效的音频URL');
+      }
+      
+      console.log('选择的音频格式:', bestFormat.mimeType, '比特率:', bestFormat.audioBitrate);
+      console.log('开始下载音频...');
+      
+      // 获取音频内容
+      const audioResponse = await fetch(bestFormat.url);
+      
+      if (!audioResponse.ok) {
+        throw new Error(`下载失败，HTTP状态: ${audioResponse.status}`);
+      }
+      
+      const audioBuffer = await audioResponse.arrayBuffer();
       console.log('音频下载成功，大小:', audioBuffer.byteLength, '字节');
       
-      // 返回音频文件给用户
+      // 返回音频文件
       return new NextResponse(audioBuffer, {
         headers: {
           'Content-Type': 'audio/mpeg',
@@ -76,66 +100,33 @@ export async function GET(request: NextRequest) {
     } catch (err) {
       console.error('处理下载失败:', err);
       
-      // 如果主方法失败，尝试使用备选方法
+      // 备选方法：使用第三方服务
+      console.log('尝试使用备选下载方法...');
       const videoId = url.match(youtubeUrlRegex)?.[4] || '';
+      const mp3ConvertApiUrl = `https://api.vevioz.com/api/button/mp3/${videoId}`;
       
-      try {
-        console.log('尝试备选方法...');
-        // 使用备选方法：ytdl-core-browser的备选获取方式
-        const alternativeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        
-        const alternativeInfo = await ytdl.getInfo(alternativeUrl, {
-          requestOptions: {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            }
-          }
-        });
-        
-        const audioFormats = ytdl.filterFormats(alternativeInfo.formats, 'audioonly') as AudioFormat[];
-        if (audioFormats.length === 0) {
-          throw new Error('没有找到可用的音频格式');
-        }
-        
-        // 选择质量最好的音频格式
-        const format = audioFormats.reduce((best: AudioFormat, format: AudioFormat) => {
-          return (format.audioBitrate || 0) > (best.audioBitrate || 0) ? format : best;
-        }, audioFormats[0]);
-        
-        console.log('备选方法找到的音频格式:', format.mimeType);
-        
-        // 获取音频内容
-        const alternativeResponse = await fetch(format.url);
-        
-        if (!alternativeResponse.ok) {
-          throw new Error(`备选方法无法获取音频: ${alternativeResponse.status}`);
-        }
-        
-        const alternativeBuffer = await alternativeResponse.arrayBuffer();
-        
-        // 返回音频文件给用户
-        return new NextResponse(alternativeBuffer, {
-          headers: {
-            'Content-Type': 'audio/mpeg',
-            'Content-Disposition': `attachment; filename="${videoId}.mp3"`,
-            'Content-Length': alternativeBuffer.byteLength.toString(),
-          }
-        });
-      } catch (backupError) {
-        console.error('备选方法失败:', backupError);
-      }
-      
-      // 所有方法都失败
-      return NextResponse.json(
-        { error: '下载失败，请稍后再试。详细错误: ' + ((err instanceof Error) ? err.message : '未知错误') },
-        { status: 500 }
-      );
+      return NextResponse.redirect(mp3ConvertApiUrl, { status: 302 });
     }
   } catch (error: unknown) {
     console.error('视频下载出现错误:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // 作为最后手段使用重定向
+    try {
+      const videoId = (error instanceof Error && error.message.includes('videoId')) 
+        ? error.message.split('videoId: ')[1]
+        : request.nextUrl.searchParams.get('url')?.match(youtubeUrlRegex)?.[4];
+        
+      if (videoId) {
+        const mp3ConvertApiUrl = `https://api.vevioz.com/api/button/mp3/${videoId}`;
+        return NextResponse.redirect(mp3ConvertApiUrl, { status: 302 });
+      }
+    } catch (e) {
+      console.error('重定向失败:', e);
+    }
+    
     return NextResponse.json(
-      { error: `Failed to download YouTube video: ${errorMessage}` },
+      { error: `下载失败: ${errorMessage}` },
       { status: 500 }
     );
   }
