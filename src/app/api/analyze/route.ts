@@ -6,17 +6,6 @@ const apiKey = process.env.OPENROUTER_API_KEY || '';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ezmp3.vercel.app';
 const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'EZ MP3 Converter';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey,
-  defaultHeaders: {
-    'HTTP-Referer': siteUrl,
-    'X-Title': siteName,
-    'Content-Type': 'application/json',
-  },
-});
-
 // YouTube URL validation regex
 const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
 
@@ -81,27 +70,64 @@ export async function GET(request: NextRequest) {
         categories: ["Music"]
       };
 
-      // Use OpenRouter API to analyze video content
-      const content = `
+      // 检查是否存在 API 密钥
+      let analysis = '';
+      if (!apiKey) {
+        // 如果没有 API 密钥，使用模拟分析数据
+        analysis = `
+## YouTube 视频分析 (演示模式)
+
+### 音频内容概述
+这是一个自动生成的音频内容分析。在实际部署中，我们会使用 OpenRouter API 来分析视频内容。
+
+### 适合 MP3 收听的原因
+- 音频质量清晰
+- 内容适合在移动设备上收听
+- 无需观看视频画面也能理解内容
+
+### 推荐收听场景
+- 通勤路上
+- 锻炼时
+- 放松休息时
+
+### 音频质量评分
+⭐⭐⭐⭐ (4/5 星)
+        `;
+      } else {
+        // 使用 OpenRouter API
+        try {
+          // Initialize OpenAI client
+          const openai = new OpenAI({
+            baseURL: 'https://openrouter.ai/api/v1',
+            apiKey,
+            defaultHeaders: {
+              'HTTP-Referer': siteUrl,
+              'X-Title': siteName,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          // Use OpenRouter API to analyze video content
+          const content = `
 Video Title: ${videoInfo.title}
 Video Description: ${videoInfo.description}
 Video Tags: ${videoInfo.tags.join(', ')}
 Video Duration: ${videoInfo.duration} seconds
 Video Categories: ${videoInfo.categories.join(', ')}
 Upload Date: ${videoInfo.upload_date}
-      `;
+          `;
 
-      // Call OpenRouter API for analysis
-      const completion = await openai.chat.completions.create({
-        model: 'openai/gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an audio content analysis expert, skilled at analyzing YouTube videos and providing insights about their audio content.'
-          },
-          {
-            role: 'user',
-            content: `Please analyze the following YouTube video content and provide insights about its audio portion. This video will be converted to MP3, please provide the following information:
+          // Call OpenRouter API for analysis
+          const completion = await openai.chat.completions.create({
+            model: 'openai/gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an audio content analysis expert, skilled at analyzing YouTube videos and providing insights about their audio content.'
+              },
+              {
+                role: 'user',
+                content: `Please analyze the following YouTube video content and provide insights about its audio portion. This video will be converted to MP3, please provide the following information:
 1. Brief overview of audio content
 2. Reasons why it's suitable for MP3 listening
 3. Recommended listening scenarios
@@ -109,23 +135,36 @@ Upload Date: ${videoInfo.upload_date}
 
 Video information:
 ${content}`
+              }
+            ],
+          });
+          
+          // 提取分析结果
+          if (completion?.choices?.[0]?.message?.content) {
+            analysis = completion.choices[0].message.content;
+          } else {
+            throw new Error('Invalid API response format');
           }
-        ],
-      });
+        } catch (apiError) {
+          console.error('OpenRouter API error:', apiError);
+          // 如果 API 调用失败，回退到模拟数据
+          analysis = `
+## YouTube 视频分析 (API 不可用)
 
-      // 添加错误处理和日志
-      console.log('OpenRouter API Response:', JSON.stringify(completion, null, 2));
-      
-      let analysis = '';
-      try {
-        if (completion?.choices?.[0]?.message?.content) {
-          analysis = completion.choices[0].message.content;
-        } else {
-          throw new Error('Invalid API response format');
+### 音频内容概述
+这是一个视频 ${videoId} 的内容分析。
+
+### 适合 MP3 收听的原因
+- 音频可以单独欣赏
+- 便于移动设备上收听
+
+### 推荐收听场景
+- 随时随地
+
+### 音频质量评分
+⭐⭐⭐ (3/5 星)
+          `;
         }
-      } catch (err) {
-        console.error('Failed to parse OpenRouter API response:', err);
-        analysis = `Video Title: ${videoInfo.title}\nDuration: ${videoInfo.duration} seconds\nUpload Date: ${videoInfo.upload_date}`;
       }
 
       // Return analysis results
