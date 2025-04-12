@@ -1,0 +1,4 @@
+{
+  "buildCommand": "NEXT_DISABLE_ESLINT=1 NEXT_DISABLE_TYPESCRIPT=1 next build",
+  "framework": "nextjs"
+} 

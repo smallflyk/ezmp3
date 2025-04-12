@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import enTranslations from '../locales/en.json';
 
 interface Translation {
@@ -82,33 +82,36 @@ interface Translation {
   };
 }
 
-type LanguageContextType = {
+interface LanguageContextType {
+  language: string;
+  setLanguage: (lang: string) => void;
   translations: Translation;
-};
+}
 
 const defaultLanguageContext: LanguageContextType = {
+  language: 'zh',
+  setLanguage: () => {},
   translations: enTranslations,
 };
 
 const LanguageContext = createContext<LanguageContextType>(defaultLanguageContext);
 
-export const useLanguage = () => useContext(LanguageContext);
-
-type LanguageProviderProps = {
-  children: ReactNode;
-};
-
-export default function LanguageProvider({ children }: LanguageProviderProps) {
-  // 只使用英文翻译
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguage] = useState<string>('zh');
+  // 使用条件运算符判断语言，但始终返回 enTranslations
   const translations = enTranslations;
 
   return (
-    <LanguageContext.Provider
-      value={{
-        translations,
-      }}
-    >
+    <LanguageContext.Provider value={{ language, setLanguage, translations }}>
       {children}
     </LanguageContext.Provider>
   );
+}
+
+export function useLanguage() {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
 } 

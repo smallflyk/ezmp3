@@ -7,7 +7,7 @@ import { useLanguage } from './LanguageProvider';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { translations } = useLanguage();
+  const { language, setLanguage } = useLanguage();
 
   return (
     <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-50">
@@ -22,13 +22,13 @@ export default function Header() {
           <div className="hidden md:flex items-center space-x-4">
             <nav className="flex items-center space-x-4">
               <Link href="/" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium">
-                Home
+                {language === 'zh' ? '首页' : 'Home'}
               </Link>
               <Link href="#features" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium">
-                Features
+                {language === 'zh' ? '功能' : 'Features'}
               </Link>
               <Link href="#how-to" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium">
-                How to Use
+                {language === 'zh' ? '使用说明' : 'How to Use'}
               </Link>
               <Link href="#faq" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium">
                 FAQ
@@ -65,19 +65,19 @@ export default function Header() {
                   className="block text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-base font-medium"
                   onClick={() => setIsMenuOpen(false)}
             >
-              Home
+              {language === 'zh' ? '首页' : 'Home'}
             </Link>
             <Link href="#features" 
                   className="block text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-base font-medium"
                   onClick={() => setIsMenuOpen(false)}
             >
-              Features
+              {language === 'zh' ? '功能' : 'Features'}
             </Link>
             <Link href="#how-to" 
                   className="block text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-base font-medium"
                   onClick={() => setIsMenuOpen(false)}
             >
-              How to Use
+              {language === 'zh' ? '使用说明' : 'How to Use'}
             </Link>
             <Link href="#faq" 
                   className="block text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-base font-medium"

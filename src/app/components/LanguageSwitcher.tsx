@@ -1,19 +1,18 @@
 'use client';
 
-import Image from 'next/image';
+import { useLanguage } from './LanguageProvider';
 
 export default function LanguageSwitcher() {
+  const { language, setLanguage } = useLanguage();
+
   return (
-    <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm">
-      <span className="w-5 h-5 relative">
-        <Image 
-          src="/images/flags/us.svg" 
-          alt="English" 
-          fill 
-          className="object-contain"
-        />
-      </span>
-      <span className="font-medium">English</span>
-    </div>
+    <select
+      value={language}
+      onChange={(e) => setLanguage(e.target.value)}
+      className="px-2 py-1 border rounded-md"
+    >
+      <option value="zh">中文</option>
+      <option value="en">English</option>
+    </select>
   );
 } 

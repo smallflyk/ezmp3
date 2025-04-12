@@ -1,13 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useLanguage } from './components/LanguageProvider';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import YoutubeConverter from './components/YoutubeConverter';
-import Image from 'next/image';
 
 export default function Home() {
-  const { translations } = useLanguage();
+  const { language, translations } = useLanguage();
   const { hero, features, howto, converter, faq } = translations;
 
   return (
@@ -34,12 +34,10 @@ export default function Home() {
               </div>
               <div className="w-full md:w-1/2 mt-8 md:mt-0">
                 <div className="relative h-64 md:h-80 lg:h-96 w-full">
-                  <Image
+                  <img
                     src="/images/youtube-mp3-hero.svg" 
                     alt="YouTube to MP3 Converter" 
                     className="object-contain"
-                    fill
-                    priority
                   />
                 </div>
               </div>
@@ -52,10 +50,10 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                YouTube Converter MP3
+                {language === 'zh' ? 'YouTube 转 MP3 转换器' : 'YouTube to MP3 Converter'}
               </h2>
               <p className="mt-4 text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Convert any YouTube video to high-quality MP3 format in just a few seconds. Simply paste the YouTube URL below and click convert.
+                {language === 'zh' ? '只需几秒钟即可将任何 YouTube 视频转换为高质量的 MP3 格式。只需在下方粘贴 YouTube URL 并点击转换。' : 'Convert any YouTube video to high-quality MP3 format in just a few seconds. Simply paste the YouTube URL below and click convert.'}
               </p>
             </div>
             

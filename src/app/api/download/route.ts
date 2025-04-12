@@ -1,33 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 import { spawn } from 'child_process';
-import { writeFile, mkdir, readFile, rename, stat, unlink } from 'fs/promises';
+import { writeFile, mkdir, readFile, stat, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { createReadStream } from 'fs';
-import { ReadableStream } from 'stream/web';
 
 // Get configuration from environment variables
 const apiKey = process.env.OPENROUTER_API_KEY || '';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ezmp3.vercel.app';
 const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'EZ MP3 Converter';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey, // Use environment variable
-  defaultHeaders: {
-    'HTTP-Referer': siteUrl, // Use environment variable
-    'X-Title': siteName, // Use environment variable
-  },
-});
-
-// YouTube URL validation regex
-const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
-
 // Temporary directory for files
 const TEMP_DIR = join(process.cwd(), 'tmp');
+
+// 修复 any 类型
+interface DownloadResponse {
+  success: boolean;
+  error?: string;
+  filePath?: string;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,6 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate YouTube URL format
+    const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
     if (!youtubeUrlRegex.test(url)) {
       return NextResponse.json(
         { error: 'Invalid YouTube URL format' },
@@ -183,18 +176,6 @@ if __name__ == '__main__':
     // Stream the file
     const fileStream = createReadStream(outputFilePath);
     
-    // Create response with appropriate headers
-    const response = new NextResponse(fileStream as unknown as ReadableStream, {
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Disposition': `attachment; filename="${videoId}.mp3"`,
-        'Content-Length': stats.size.toString(),
-        'Cache-Control': 'no-cache',
-        'Accept-Ranges': 'bytes',
-        'Connection': 'keep-alive',
-      },
-    });
-
     // 改用同步方式处理文件删除
     try {
       const fileContent = await readFile(outputFilePath);

@@ -32,6 +32,18 @@ interface VideoInfo {
   categories: string[];
 }
 
+interface AnalysisResult {
+  videoId: string;
+  title: string;
+  analysis: string;
+  metadata: {
+    duration: number;
+    uploadDate: string;
+    categories: string[];
+    tags: string[];
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = request.nextUrl.searchParams.get('url');
