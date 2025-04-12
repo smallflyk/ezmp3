@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 
 type VideoAnalysisProps = {
@@ -21,12 +21,12 @@ type AnalysisResult = {
 };
 
 export default function VideoAnalysis({ url, isVisible }: VideoAnalysisProps) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [analysis, setAnalysis] = React.useState<AnalysisResult | null>(null);
   const { language } = useLanguage();
 
-  const fetchAnalysis = useCallback(async () => {
+  const fetchAnalysis = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -46,7 +46,7 @@ export default function VideoAnalysis({ url, isVisible }: VideoAnalysisProps) {
     }
   }, [url]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isVisible && url) {
       fetchAnalysis();
     }

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useLanguage } from '../hooks/useLanguage';
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const { language, setLanguage } = useLanguage();
 
   return (

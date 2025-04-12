@@ -73,7 +73,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       setStatus('loading');
       setDownloadError(null);
       
-      // 发送API请求获取下载信息，包括音质选择
+      // 使用info模式获取下载信息
       const response = await fetch(`/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`);
       const data = await response.json();
       
@@ -82,46 +82,39 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        if (data.fallback && data.services) {
-          // 创建一个iframe来加载第三方服务，而不是跳转
-          const proxyFrame = document.createElement('iframe');
-          proxyFrame.style.display = 'none';
-          proxyFrame.src = data.services[0];
-          document.body.appendChild(proxyFrame);
+        // 直接使用下载URL - 这将触发服务器端重定向到实际下载链接
+        const downloadUrl = data.downloadUrl;
+        console.log("开始下载音频:", downloadUrl);
+        
+        try {
+          // 方法1: 使用window.location打开下载链接
+          window.open(downloadUrl, '_blank');
           
-          // 设置超时移除iframe
+          // 方法2: 如果方法1失败，尝试使用下载选项中的直接链接
           setTimeout(() => {
-            if (document.body.contains(proxyFrame)) {
-              document.body.removeChild(proxyFrame);
+            if (data.downloadOptions && data.downloadOptions.direct) {
+              const directLink = document.createElement('a');
+              directLink.href = data.downloadOptions.direct;
+              directLink.target = '_blank';
+              directLink.rel = 'noopener noreferrer';
+              document.body.appendChild(directLink);
+              directLink.click();
+              document.body.removeChild(directLink);
             }
-          }, 60000); // 1分钟后移除
+          }, 1000);
+        } catch (downloadError) {
+          console.error("下载失败，尝试备用方法:", downloadError);
           
-          // 向用户显示下载开始消息
-          alert(language === 'zh' ? '下载已开始，请稍候...' : 'Download started, please wait...');
-        } else if (data.audioUrl) {
-          // 使用直接URL
-          console.log("开始下载音频:", data.audioUrl);
-          
-          // 创建一个临时链接并触发下载
-          const downloadLink = document.createElement('a');
-          downloadLink.href = data.audioUrl;
-          downloadLink.download = `${data.title || 'youtube-audio'}.mp3`;
-          downloadLink.target = '_blank'; // 添加目标属性
-          
-          // 对于跨域资源，可能需要先获取blob
-          try {
-            // 尝试直接下载
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-          } catch (downloadError) {
-            console.error("直接下载失败，尝试备用方法:", downloadError);
+          // 备用下载方法
+          if (data.downloadOptions) {
+            const options = data.downloadOptions;
             
-            // 打开新窗口
-            window.open(data.audioUrl, '_blank');
+            // 逐一尝试不同的下载选项
+            if (options.rapidApi) window.open(options.rapidApi, '_blank');
+            else if (options.direct) window.open(options.direct, '_blank');
+            else if (options.backup) window.open(options.backup, '_blank');
+            else if (options.yt5s) window.open(options.yt5s, '_blank');
           }
-        } else {
-          throw new Error('No download URL provided');
         }
         
         setStatus('success');
