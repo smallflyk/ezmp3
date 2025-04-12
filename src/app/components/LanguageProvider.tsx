@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import React from 'react';
 import enTranslations from '../locales/en.json';
+import zhTranslations from '../locales/zh.json';
 
 interface Translation {
   hero: {
@@ -91,14 +92,22 @@ interface LanguageContextType {
 const defaultLanguageContext: LanguageContextType = {
   language: 'zh',
   setLanguage: () => {},
-  translations: enTranslations,
+  translations: zhTranslations,
 };
 
-const LanguageContext = createContext<LanguageContextType>(defaultLanguageContext);
+const LanguageContext = React.createContext<LanguageContextType>(defaultLanguageContext);
 
-function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<string>('zh');
-  const translations = enTranslations;
+function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [language, setLanguage] = React.useState<string>('zh');
+  const [translations, setTranslations] = React.useState<Translation>(zhTranslations);
+
+  React.useEffect(() => {
+    if (language === 'en') {
+      setTranslations(enTranslations);
+    } else {
+      setTranslations(zhTranslations);
+    }
+  }, [language]);
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, translations }}>
@@ -108,7 +117,7 @@ function LanguageProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLanguage() {
-  const context = useContext(LanguageContext);
+  const context = React.useContext(LanguageContext);
   if (context === undefined) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }

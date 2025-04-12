@@ -37,6 +37,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://ezmp3.art"),
 };
 
+// 添加Google Analytics标签
+export const GA_TRACKING_ID = 'G-L0FHTB5RRW';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -44,6 +47,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* 在head中手动添加额外内容 */}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
