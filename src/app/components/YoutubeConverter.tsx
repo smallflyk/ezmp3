@@ -107,27 +107,24 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           : 'Do you want to download the MP3 file directly? Select "Yes" to download directly, or "No" to redirect to a third-party site.';
         
         if (confirm(directDownloadMessage)) {
-          // 直接从后端下载
+          // 修改后的直接下载方法
           setStatus('loading');
           
-          // 创建下载链接
-          const backendUrl = `/api/v1/direct-download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
+          // 使用Y2Mate API
+          const y2mateUrl = `https://www.y2mate.com/youtube-mp3/${extractedVideoId}`;
           
-          // 创建下载链接并自动点击
-          const downloadLink = document.createElement('a');
-          downloadLink.href = backendUrl;
-          downloadLink.setAttribute('download', `${data.title || `youtube_${extractedVideoId}`}.mp3`);
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
+          // 在新窗口打开Y2Mate
+          window.open(y2mateUrl, '_blank');
           
-          // 等待一段时间以使下载开始
-          setTimeout(() => {
-            setStatus('success');
-            
-            // 显示下载指南
-            setShowGuide(true);
-          }, 1000);
+          // 显示下载指南
+          setShowGuide(true);
+          setStatus('success');
+          
+          const guideMessage = language === 'zh' 
+            ? '已在新窗口打开转换工具。请按照以下步骤完成下载：\n1. 在打开的页面中等待视频加载\n2. 选择MP3格式\n3. 点击"下载"按钮\n4. 等待转换完成\n5. 下载文件' 
+            : 'Conversion tool opened in a new window. Please follow these steps to complete the download:\n1. Wait for the video to load\n2. Select MP3 format\n3. Click "Download" button\n4. Wait for conversion to complete\n5. Download the file';
+          
+          alert(guideMessage);
         } else {
           // 使用第三方网站下载
           setShowGuide(true);
@@ -143,10 +140,10 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             let downloadUrl = null;
             
             // 按优先级尝试不同的下载选项
-            if (options.ssyoutube) downloadUrl = options.ssyoutube;
+            if (options.y2mate) downloadUrl = options.y2mate;
+            else if (options.ssyoutube) downloadUrl = options.ssyoutube;
             else if (options.yt1s) downloadUrl = options.yt1s;
             else if (options.savefrom) downloadUrl = options.savefrom;
-            else if (options.y2mate) downloadUrl = options.y2mate;
             else if (options.flvto) downloadUrl = options.flvto;
             else if (options.converterbear) downloadUrl = options.converterbear;
             else if (options.onlinevideoconverter) downloadUrl = options.onlinevideoconverter;
@@ -155,12 +152,12 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             if (downloadUrl) {
               openDownloadSite(downloadUrl);
             } else {
-              // 如果没有可用的下载选项，使用默认的ssyoutube
-              openDownloadSite(`https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${extractedVideoId}`);
+              // 如果没有可用的下载选项，使用默认的y2mate
+              openDownloadSite(`https://www.y2mate.com/youtube-mp3/${extractedVideoId}`);
             }
           } else {
-            // 如果没有下载选项，使用默认的ssyoutube
-            openDownloadSite(`https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${extractedVideoId}`);
+            // 如果没有下载选项，使用默认的y2mate
+            openDownloadSite(`https://www.y2mate.com/youtube-mp3/${extractedVideoId}`);
           }
         }
         
