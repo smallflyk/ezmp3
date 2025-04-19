@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // 使用RapidAPI进行直接MP3转换和下载
+      // 使用RapidAPI进行直接MP3转换和下载 - 尝试另一个API端点
       const rapidApiKey = process.env.RAPIDAPI_KEY;
       if (!rapidApiKey) {
         return NextResponse.json(
@@ -42,31 +42,87 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 调用RapidAPI进行转换
-      const rapidApiOptions = {
+      // =================== 方法1：使用youtube-mp3-download-basic API ===================
+      const options = {
         method: 'GET',
         headers: {
           'X-RapidAPI-Key': rapidApiKey,
-          'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com'
+          'X-RapidAPI-Host': 'youtube-mp3-download-basic.p.rapidapi.com'
         }
       };
-
-      const rapidApiUrl = `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}&quality=${bitrate}`;
-      const rapidApiResponse = await fetch(rapidApiUrl, rapidApiOptions);
-      const rapidApiData = await rapidApiResponse.json();
-
-      if (rapidApiData.status === 'ok' && rapidApiData.link) {
-        // 跳转到实际的音频文件URL进行下载
-        return NextResponse.redirect(rapidApiData.link);
+      
+      const apiUrl = `https://youtube-mp3-download-basic.p.rapidapi.com/mp3download?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&quality=${bitrate}`;
+      
+      // 首先获取MP3下载链接
+      const response = await fetch(apiUrl, options);
+      const data = await response.json();
+      
+      if (data && data.link) {
+        // 重定向到实际的MP3下载链接
+        // 添加Content-Disposition头以确保浏览器将其作为MP3文件下载
+        const filename = data.title ? `${data.title}.mp3` : `youtube_${videoId}.mp3`;
+        
+        // 创建响应对象并设置所需的标头
+        return new Response(null, {
+          status: 302, // 临时重定向
+          headers: {
+            'Location': data.link,
+            'Content-Type': 'audio/mpeg',
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+          },
+        });
       } else {
-        throw new Error(rapidApiData.msg || '转换失败');
+        // 如果第一种方法失败，尝试第二种方法
+        throw new Error('无法获取下载链接');
       }
     } catch (apiError) {
-      console.error('RapidAPI调用失败:', apiError);
-      return NextResponse.json(
-        { error: `API调用失败: ${apiError instanceof Error ? apiError.message : '未知错误'}` },
-        { status: 502 }
-      );
+      console.error('第一个API调用失败，尝试备用API:', apiError);
+      
+      try {
+        // =================== 方法2：使用youtube-to-mp3 API ===================
+        const rapidApiKey = process.env.RAPIDAPI_KEY;
+        if (!rapidApiKey) {
+          throw new Error('RapidAPI Key not configured');
+        }
+        
+        const options = {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': rapidApiKey,
+            'X-RapidAPI-Host': 'youtube-to-mp3-download.p.rapidapi.com'
+          }
+        };
+        
+        const apiUrl = `https://youtube-to-mp3-download.p.rapidapi.com/mp3download?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&quality=${bitrate}`;
+        
+        // 获取MP3下载链接
+        const response = await fetch(apiUrl, options);
+        const data = await response.json();
+        
+        if (data && data.link) {
+          // 重定向到实际的MP3下载链接
+          const filename = data.title ? `${data.title}.mp3` : `youtube_${videoId}.mp3`;
+          
+          return new Response(null, {
+            status: 302, // 临时重定向
+            headers: {
+              'Location': data.link,
+              'Content-Type': 'audio/mpeg',
+              'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+            },
+          });
+        } else {
+          throw new Error('无法获取下载链接');
+        }
+      } catch (backupError) {
+        console.error('备用API调用失败:', backupError);
+        
+        // 如果两种方法都失败，返回错误
+        return NextResponse.json(
+          { error: '无法转换视频，请尝试使用第三方网站下载' },
+          { status: 502 }
+        );
+      }
     }
   } catch (error: unknown) {
     console.error('直接下载处理出错:', error);
