@@ -4,69 +4,28 @@
     "subtitle": "The fastest way to convert YouTube videos to high-quality MP3 files. Simple, free, and no registration required.",
     "cta": "Try It Now"
   },
-  "features": {
-    "title": "Features",
-    "feature1": {
-      "title": "Fast Conversion",
-      "description": "Convert any YouTube video to MP3 in seconds, without waiting in queues."
-    },
-    "feature2": {
-      "title": "High Quality Audio",
-      "description": "Get the best audio quality possible from your YouTube videos."
-    },
-    "feature3": {
-      "title": "No Registration",
-      "description": "No account required. Just paste your YouTube URL and download."
-    },
-    "feature4": {
-      "title": "Free to Use",
-      "description": "Our service is completely free with no hidden costs or limitations."
-    },
-    "feature5": {
-      "title": "Multiple Languages",
-      "description": "Our interface is available in multiple languages for your convenience."
-    },
-    "feature6": {
-      "title": "Secure Process",
-      "description": "Your data is never stored on our servers. All conversions are private and secure."
-    }
-  },
-  "howto": {
-    "title": "How to Use",
-    "step1": {
-      "title": "Paste YouTube URL",
-      "description": "Copy the URL of any YouTube video and paste it into the converter box."
-    },
-    "step2": {
-      "title": "Convert to MP3",
-      "description": "Click the convert button and wait a few seconds for the process to complete."
-    },
-    "step3": {
-      "title": "Download Your MP3",
-      "description": "Once conversion is complete, download your MP3 file with one click."
-    }
-  },
   "converter": {
     "placeholder": "Paste YouTube URL here",
     "button": "Convert to MP3",
     "loading": "Converting...",
-    "success": "Download MP3",
-    "error": "Error: Please try again"
+    "success": "Conversion complete",
+    "error": "Error: Please try again",
+    "bitrate": "Audio Quality",
+    "download": "Download MP3",
+    "downloading": "Downloading..."
   },
-  "faq": {
-    "title": "Frequently Asked Questions",
-    "q1": "Is this service completely free?",
-    "a1": "Yes, our YouTube to MP3 converter is 100% free to use with no limitations.",
-    "q2": "What is the maximum length of video I can convert?",
-    "a2": "You can convert YouTube videos of any length, but longer videos may take more time to process.",
-    "q3": "What audio quality will I get?",
-    "a3": "We extract the highest quality audio available from the YouTube video, typically 128-192 kbps.",
-    "q4": "Is it legal to convert YouTube videos to MP3?",
-    "a4": "Converting YouTube videos for personal use is generally accepted. However, redistributing copyrighted content is not permitted.",
-    "q5": "Do you store the converted files on your server?",
-    "a5": "No, we don't store any converted files. Files are deleted immediately after download.",
-    "q6": "Can I use this on mobile devices?",
-    "a6": "Yes, our converter works on all devices including smartphones and tablets."
+  "downloadGuide": {
+    "title": "Download Guide",
+    "step1": "Wait for website to load",
+    "step2": "Select MP3 format",
+    "step3": "Choose quality",
+    "step4": "Click download button",
+    "step5": "Download file",
+    "tip": "Tip",
+    "tipContent": "If website doesn't work, try other options",
+    "closeGuide": "Close",
+    "alertMessage": "Opening download website",
+    "popupBlocked": "Please allow popups"
   },
   "footer": {
     "copyright": "© 2024 EZ MP3 Converter. All rights reserved.",

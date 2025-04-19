@@ -8,7 +8,7 @@ import YoutubeConverter from './components/YoutubeConverter';
 
 export default function Home() {
   const { language, translations } = useLanguage();
-  const { hero, features, howto, converter, faq } = translations;
+  const { hero, converter } = translations;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -20,10 +20,12 @@ export default function Home() {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-                {hero.title}
+                {hero?.title || (language === 'zh' ? 'YouTube视频转MP3' : 'Convert YouTube Videos to MP3')}
               </h1>
               <p className="mt-4 text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                {hero.subtitle}
+                {hero?.subtitle || (language === 'zh' 
+                  ? '最快速的方式将YouTube视频转换成高质量MP3文件。简单、免费，无需注册。' 
+                  : 'The fastest way to convert YouTube videos to high-quality MP3 files. Simple, free, and no registration required.')}
               </p>
             </div>
           </div>
@@ -43,7 +45,7 @@ export default function Home() {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {howto.title}
+                {language === 'zh' ? '使用方法' : 'How to Use'}
               </h2>
             </div>
             
@@ -53,10 +55,12 @@ export default function Home() {
                   1
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {howto.step1.title}
+                  {language === 'zh' ? '粘贴YouTube链接' : 'Paste YouTube URL'}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  {howto.step1.description}
+                  {language === 'zh' 
+                    ? '复制任何YouTube视频的链接并粘贴到转换器框中。' 
+                    : 'Copy the URL of any YouTube video and paste it into the converter box.'}
                 </p>
               </div>
               
@@ -65,10 +69,12 @@ export default function Home() {
                   2
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {howto.step2.title}
+                  {language === 'zh' ? '转换为MP3' : 'Convert to MP3'}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  {howto.step2.description}
+                  {language === 'zh' 
+                    ? '点击转换按钮，等待几秒钟完成处理。' 
+                    : 'Click the convert button and wait a few seconds for the process to complete.'}
                 </p>
               </div>
               
@@ -77,50 +83,12 @@ export default function Home() {
                   3
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {howto.step3.title}
+                  {language === 'zh' ? '下载MP3文件' : 'Download Your MP3'}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  {howto.step3.description}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-        
-        {/* FAQ Section - 简化版 */}
-        <section id="faq" className="py-12 bg-white dark:bg-gray-800">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {faq.title}
-              </h2>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {faq.q1}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  {faq.a1}
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {faq.q3}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  {faq.a3}
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {faq.q4}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  {faq.a4}
+                  {language === 'zh' 
+                    ? '转换完成后，一键下载您的MP3文件。' 
+                    : 'Once conversion is complete, download your MP3 file with one click.'}
                 </p>
               </div>
             </div>

@@ -10,48 +10,6 @@ interface Translation {
     subtitle: string;
     cta: string;
   };
-  features: {
-    title: string;
-    feature1: {
-      title: string;
-      description: string;
-    };
-    feature2: {
-      title: string;
-      description: string;
-    };
-    feature3: {
-      title: string;
-      description: string;
-    };
-    feature4: {
-      title: string;
-      description: string;
-    };
-    feature5: {
-      title: string;
-      description: string;
-    };
-    feature6: {
-      title: string;
-      description: string;
-    };
-  };
-  howto: {
-    title: string;
-    step1: {
-      title: string;
-      description: string;
-    };
-    step2: {
-      title: string;
-      description: string;
-    };
-    step3: {
-      title: string;
-      description: string;
-    };
-  };
   converter: {
     placeholder: string;
     button: string;
@@ -62,20 +20,18 @@ interface Translation {
     download?: string;
     downloading?: string;
   };
-  faq: {
-    title: string;
-    q1: string;
-    a1: string;
-    q2: string;
-    a2: string;
-    q3: string;
-    a3: string;
-    q4: string;
-    a4: string;
-    q5: string;
-    a5: string;
-    q6: string;
-    a6: string;
+  downloadGuide?: {
+    title?: string;
+    step1?: string;
+    step2?: string;
+    step3?: string;
+    step4?: string;
+    step5?: string;
+    tip?: string;
+    tipContent?: string;
+    closeGuide?: string;
+    alertMessage?: string;
+    popupBlocked?: string;
   };
   footer: {
     copyright: string;
