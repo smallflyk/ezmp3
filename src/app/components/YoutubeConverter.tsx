@@ -91,51 +91,70 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         throw new Error('Could not extract video ID');
       }
       
-      // Generate download URL
-      const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
+      // Generate download URL with bitrate parameter
+      const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
       
-      // Use direct fetch and blob download approach
-      const response = await fetch(downloadApiUrl);
+      console.log('Requesting MP3 download from:', downloadApiUrl);
       
-      if (!response.ok) {
-        let errorMessage = 'Download failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          // If response is not JSON, use status text
-          errorMessage = response.statusText || errorMessage;
+      // Use direct fetch and blob download approach with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
+      try {
+        const response = await fetch(downloadApiUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          let errorMessage = 'Download failed';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            // If response is not JSON, use status text
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
-        throw new Error(errorMessage);
-      }
-      
-      // Get filename from Content-Disposition header if available
-      let filename = `youtube-${extractedVideoId}.mp3`;
-      const contentDisposition = response.headers.get('Content-Disposition');
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1];
+        
+        // Get filename from Content-Disposition header if available
+        let filename = `youtube-${extractedVideoId}.mp3`;
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
         }
+        
+        // Convert response to blob
+        const blob = await response.blob();
+        
+        // Verify it's an audio file
+        if (blob.type !== 'audio/mpeg' && !blob.type.includes('audio/')) {
+          console.warn('Received non-audio content:', blob.type);
+          // Try to process it anyway, it might be mislabeled
+        }
+        
+        // Create a blob URL and trigger download
+        const blobUrl = window.URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = filename;
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
+        
+        // Trigger download and clean up
+        downloadLink.click();
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(downloadLink);
+        
+        setStatus('success');
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Download request timed out. Please try again or try a different video.');
+        }
+        throw fetchError;
       }
-      
-      // Convert response to blob
-      const blob = await response.blob();
-      
-      // Create a blob URL and trigger download
-      const blobUrl = window.URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = blobUrl;
-      downloadLink.download = filename;
-      downloadLink.style.display = 'none';
-      document.body.appendChild(downloadLink);
-      
-      // Trigger download and clean up
-      downloadLink.click();
-      window.URL.revokeObjectURL(blobUrl);
-      document.body.removeChild(downloadLink);
-      
-      setStatus('success');
     } catch (error) {
       console.error('Download error:', error);
       setStatus('error');
