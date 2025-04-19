@@ -36,104 +36,83 @@ export async function GET(request: NextRequest) {
     }
     
     // 检查RapidAPI密钥
-    const rapidApiKey = process.env.RAPIDAPI_KEY;
+    let rapidApiKey = process.env.RAPIDAPI_KEY;
+    // 如果环境变量中没有配置，使用提供的备选密钥
     if (!rapidApiKey) {
-      console.warn('RapidAPI Key not configured, falling back to free services');
-      // 尝试使用不需要API密钥的备选服务
-      return await handleFreeDownload(videoId);
+      console.warn('环境变量中未找到RapidAPI密钥，使用备用密钥');
+      rapidApiKey = '511c5bcf88msh9c41cd1a0f30623p10a3d0jsn95e8806e2d45';
     }
     
-    // 首先尝试使用youtube-mp3-download-basic API
+    // 首先尝试使用新的youtube-to-mp315 API
     try {
       // 设置API请求选项
       const options = {
         method: 'GET',
         headers: {
           'X-RapidAPI-Key': rapidApiKey,
-          'X-RapidAPI-Host': 'youtube-mp3-download-basic.p.rapidapi.com'
+          'X-RapidAPI-Host': 'youtube-to-mp315.p.rapidapi.com'
         }
       };
       
-      // 构建API URL
-      const apiUrl = `https://youtube-mp3-download-basic.p.rapidapi.com/mp3download?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&quality=${bitrate}`;
+      // 首先获取转换状态
+      const statusApiUrl = `https://youtube-to-mp315.p.rapidapi.com/status/${videoId}`;
       
-      // 获取MP3下载链接
-      console.log('Fetching MP3 download link...');
-      const response = await fetch(apiUrl, options);
-      const data = await response.json();
+      console.log('Checking conversion status...');
+      const statusResponse = await fetch(statusApiUrl, options);
+      let statusData = await statusResponse.json();
       
-      if (!data || !data.link) {
-        throw new Error('无法获取下载链接');
-      }
+      console.log('Status response:', statusData);
       
-      // 设置文件名
-      const filename = data.title ? `${data.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}.mp3` : `youtube-${videoId}.mp3`;
-      
-      // 获取MP3文件
-      console.log('Downloading MP3 from:', data.link);
-      const mp3Response = await fetch(data.link);
-      
-      if (!mp3Response.ok) {
-        throw new Error(`MP3下载失败，状态码: ${mp3Response.status}`);
-      }
-      
-      // 获取MP3流
-      const mp3Stream = mp3Response.body;
-      if (!mp3Stream) {
-        throw new Error('无法获取MP3流');
-      }
-      
-      // 直接返回MP3流，设置正确的头信息
-      return new Response(mp3Stream, {
-        status: 200,
-        headers: {
-          'Content-Type': 'audio/mpeg',
-          'Content-Disposition': `attachment; filename="${filename}"`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-    } 
-    catch (error) {
-      console.error('第一个API调用失败，尝试备用API:', error);
-      
-      // 尝试备用API
-      try {
-        const options = {
-          method: 'GET',
-          headers: {
-            'X-RapidAPI-Key': rapidApiKey,
-            'X-RapidAPI-Host': 'youtube-to-mp3-download.p.rapidapi.com'
+      if (statusData.status === 'running' || statusData.status === 'pending') {
+        // 转换正在进行中，需要等待一段时间
+        console.log('Conversion in progress, waiting...');
+        
+        // 等待最多30秒
+        let retries = 0;
+        let conversionComplete = false;
+        let finalStatusData = null;
+        
+        while (!conversionComplete && retries < 6) {
+          // 暂停5秒
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // 再次检查状态
+          const retryResponse = await fetch(statusApiUrl, options);
+          finalStatusData = await retryResponse.json();
+          
+          if (finalStatusData.status === 'completed') {
+            conversionComplete = true;
           }
-        };
-        
-        const apiUrl = `https://youtube-to-mp3-download.p.rapidapi.com/mp3download?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&quality=${bitrate}`;
-        
-        // 获取MP3下载链接
-        console.log('Fetching MP3 download link from backup API...');
-        const response = await fetch(apiUrl, options);
-        const data = await response.json();
-        
-        if (!data || !data.link) {
-          throw new Error('备用API无法获取下载链接');
+          
+          retries++;
         }
         
+        if (!conversionComplete) {
+          throw new Error('转换超时，请稍后再试');
+        }
+        
+        statusData = finalStatusData;
+      }
+      
+      // 转换已完成，获取下载链接
+      if (statusData.status === 'completed' && statusData.url) {
         // 设置文件名
-        const filename = data.title ? `${data.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}.mp3` : `youtube-${videoId}.mp3`;
+        const filename = statusData.title ? 
+          `${statusData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}.mp3` : 
+          `youtube-${videoId}.mp3`;
         
         // 获取MP3文件
-        console.log('Downloading MP3 from backup source:', data.link);
-        const mp3Response = await fetch(data.link);
+        console.log('Downloading MP3 from:', statusData.url);
+        const mp3Response = await fetch(statusData.url);
         
         if (!mp3Response.ok) {
-          throw new Error(`备用MP3下载失败，状态码: ${mp3Response.status}`);
+          throw new Error(`MP3下载失败，状态码: ${mp3Response.status}`);
         }
         
         // 获取MP3流
         const mp3Stream = mp3Response.body;
         if (!mp3Stream) {
-          throw new Error('无法获取备用MP3流');
+          throw new Error('无法获取MP3流');
         }
         
         // 直接返回MP3流，设置正确的头信息
@@ -147,46 +126,42 @@ export async function GET(request: NextRequest) {
             'Expires': '0'
           }
         });
-      } 
-      catch (backupError) {
-        console.error('备用API调用失败:', backupError);
+      }
+      
+      // 如果没有找到URL，则尝试启动转换过程
+      if (statusData.status !== 'completed' || !statusData.url) {
+        // 调用转换API启动转换
+        const convertApiUrl = `https://youtube-to-mp315.p.rapidapi.com/convert/${videoId}`;
+        console.log('Starting conversion via API...');
         
-        // 如果存在Y2Mate API，尝试Y2Mate作为最后的备选方案
-        try {
-          // Y2Mate API接口（如果有）
-          const getY2MateLink = async () => {
-            // 简单实现：使用第三个免费API或服务
-            // 这是示例代码，您可能需要根据实际情况实现
-            const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-            return { 
-              link: `https://api.vevioz.com/api/button/mp3/${videoId}`,
-              title: `YouTube Video ${videoId}`
-            };
-          };
-          
-          const y2mateData = await getY2MateLink();
-          
-          if (!y2mateData || !y2mateData.link) {
-            throw new Error('所有API都无法获取下载链接');
-          }
-          
+        const convertResponse = await fetch(convertApiUrl, options);
+        const convertData = await convertResponse.json();
+        
+        if (convertData.status === 'running' || convertData.status === 'pending') {
+          throw new Error('转换已启动，请稍后再试');
+        }
+        
+        if (convertData.status === 'completed' && convertData.url) {
           // 设置文件名
-          const filename = y2mateData.title ? `${y2mateData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}.mp3` : `youtube-${videoId}.mp3`;
+          const filename = convertData.title ? 
+            `${convertData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}.mp3` : 
+            `youtube-${videoId}.mp3`;
           
-          // 获取MP3文件（考虑到某些API可能需要额外处理）
-          const mp3Response = await fetch(y2mateData.link);
+          // 获取MP3文件
+          console.log('Downloading MP3 from:', convertData.url);
+          const mp3Response = await fetch(convertData.url);
           
           if (!mp3Response.ok) {
-            throw new Error(`第三备选MP3下载失败，状态码: ${mp3Response.status}`);
+            throw new Error(`MP3下载失败，状态码: ${mp3Response.status}`);
           }
           
           // 获取MP3流
           const mp3Stream = mp3Response.body;
           if (!mp3Stream) {
-            throw new Error('无法获取第三备选MP3流');
+            throw new Error('无法获取MP3流');
           }
           
-          // 直接返回MP3流
+          // 直接返回MP3流，设置正确的头信息
           return new Response(mp3Stream, {
             status: 200,
             headers: {
@@ -197,12 +172,16 @@ export async function GET(request: NextRequest) {
               'Expires': '0'
             }
           });
-        } 
-        catch (finalError) {
-          console.error('所有API调用都失败:', finalError);
-          throw new Error('所有下载方法均失败，请尝试使用第三方网站下载');
         }
+        
+        throw new Error('无法获取下载链接');
       }
+    } 
+    catch (error) {
+      console.error('API调用失败，尝试备用服务:', error);
+      
+      // 尝试备选下载服务
+      return await handleFreeDownload(videoId);
     }
   } catch (error: any) {
     console.error('Download error:', error);
