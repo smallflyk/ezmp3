@@ -92,7 +92,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         throw new Error('Could not extract video ID');
       }
       
-      // 获取下载选项
+      // Get download options
       const response = await fetch(`/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`);
       const data = await response.json();
       
@@ -103,29 +103,27 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       if (data.success) {
         setStatus('loading');
         
-        // 通过打开新窗口方式下载
+        // Direct download method - using HTML download attribute
         const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
         
-        // 方法1：在新窗口打开下载链接 - 这种方法在大多数浏览器上工作良好
-        window.open(downloadApiUrl, '_blank');
+        // Create an invisible download link with download attribute
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadApiUrl;
+        downloadLink.setAttribute('download', `YouTube_${extractedVideoId}.mp3`);
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
         
-        // 方法2：使用隐藏的iframe作为备用
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = downloadApiUrl;
-        document.body.appendChild(iframe);
+        // Trigger the download
+        downloadLink.click();
         
-        // 5秒后删除iframe
+        // Clean up
         setTimeout(() => {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-        }, 5000);
+          document.body.removeChild(downloadLink);
+        }, 1000);
         
-        // 通知用户
-        const downloadMessage = 'Download started! If the file did not download automatically, please check your browser popup settings.';
+        // Notify user
+        alert('Your download has started! If it does not begin automatically, please check your browser settings.');
         
-        alert(downloadMessage);
         setStatus('success');
       } else {
         throw new Error('Conversion failed');
