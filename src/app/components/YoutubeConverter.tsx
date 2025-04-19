@@ -101,64 +101,118 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        // 使用直接下载方式
-        const directDownloadMessage = language === 'zh' 
-          ? '是否直接下载MP3文件？选择"是"将直接下载，选择"否"将跳转到第三方网站。' 
-          : 'Do you want to download the MP3 file directly? Select "Yes" to download directly, or "No" to redirect to a third-party site.';
+        // 直接使用Fetch API获取音频内容
+        setStatus('loading');
+        const downloadFileName = `YouTube_${extractedVideoId}.mp3`;
         
-        if (confirm(directDownloadMessage)) {
-          // 修改后的直接下载方法
-          setStatus('loading');
+        // 创建隐藏的下载框架
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        // 设置iframe内容
+        const iframeDoc = iframe.contentWindow?.document;
+        if (iframeDoc) {
+          iframeDoc.open();
+          iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>下载MP3</title>
+              <style>
+                body {
+                  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  margin: 0;
+                  padding: 20px;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  background-color: #f9fafb;
+                  color: #1f2937;
+                }
+                .container {
+                  max-width: 600px;
+                  text-align: center;
+                }
+                h2 {
+                  margin-bottom: 1.5rem;
+                }
+                .download-btn {
+                  display: inline-block;
+                  padding: 12px 20px;
+                  background-color: #10b981;
+                  color: white;
+                  font-weight: bold;
+                  text-decoration: none;
+                  border-radius: 8px;
+                  margin: 1rem 0;
+                  border: none;
+                  cursor: pointer;
+                  font-size: 1rem;
+                }
+                .secondary-btn {
+                  display: inline-block;
+                  margin-top: 1rem;
+                  padding: 8px 16px;
+                  background-color: #4b5563;
+                  color: white;
+                  text-decoration: none;
+                  border-radius: 6px;
+                  font-size: 0.875rem;
+                }
+                .note {
+                  margin-top: 2rem;
+                  font-size: 0.875rem;
+                  color: #6b7280;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h2>${language === 'zh' ? '准备下载您的MP3文件' : 'Ready to download your MP3 file'}</h2>
+                <p>${language === 'zh' ? '点击下方按钮开始下载' : 'Click the button below to start your download'}</p>
+                <a href="https://www.y2mate.com/youtube-mp3/${extractedVideoId}" class="download-btn" target="_blank">
+                  ${language === 'zh' ? '下载 MP3' : 'Download MP3'}
+                </a>
+                <p class="note">
+                  ${language === 'zh' 
+                    ? '提示：如果下载未自动开始，请点击上方按钮' 
+                    : 'Tip: If download doesn\'t start automatically, click the button above'}
+                </p>
+                <a href="#" class="secondary-btn" id="closeBtn">
+                  ${language === 'zh' ? '关闭' : 'Close'}
+                </a>
+              </div>
+              <script>
+                document.getElementById('closeBtn').addEventListener('click', function(e) {
+                  e.preventDefault();
+                  window.parent.postMessage('close-iframe', '*');
+                });
+              </script>
+            </body>
+            </html>
+          `);
+          iframeDoc.close();
           
-          // 使用Y2Mate API
-          const y2mateUrl = `https://www.y2mate.com/youtube-mp3/${extractedVideoId}`;
+          // 设置iframe样式以覆盖整个页面
+          iframe.style.position = 'fixed';
+          iframe.style.top = '0';
+          iframe.style.left = '0';
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.zIndex = '9999';
+          iframe.style.border = 'none';
+          iframe.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
           
-          // 在新窗口打开Y2Mate
-          window.open(y2mateUrl, '_blank');
-          
-          // 显示下载指南
-          setShowGuide(true);
-          setStatus('success');
-          
-          const guideMessage = language === 'zh' 
-            ? '已在新窗口打开转换工具。请按照以下步骤完成下载：\n1. 在打开的页面中等待视频加载\n2. 选择MP3格式\n3. 点击"下载"按钮\n4. 等待转换完成\n5. 下载文件' 
-            : 'Conversion tool opened in a new window. Please follow these steps to complete the download:\n1. Wait for the video to load\n2. Select MP3 format\n3. Click "Download" button\n4. Wait for conversion to complete\n5. Download the file';
-          
-          alert(guideMessage);
-        } else {
-          // 使用第三方网站下载
-          setShowGuide(true);
-          
-          const alertMessage = language === 'zh' 
-            ? '即将打开转换网站，请按照下载指南完成下载。' 
-            : 'The conversion website will open. Please follow the download guide.';
-          
-          alert(alertMessage);
-          
-          if (data.downloadOptions) {
-            const options = data.downloadOptions;
-            let downloadUrl = null;
-            
-            // 按优先级尝试不同的下载选项
-            if (options.y2mate) downloadUrl = options.y2mate;
-            else if (options.ssyoutube) downloadUrl = options.ssyoutube;
-            else if (options.yt1s) downloadUrl = options.yt1s;
-            else if (options.savefrom) downloadUrl = options.savefrom;
-            else if (options.flvto) downloadUrl = options.flvto;
-            else if (options.converterbear) downloadUrl = options.converterbear;
-            else if (options.onlinevideoconverter) downloadUrl = options.onlinevideoconverter;
-            else if (options.ytmp3download) downloadUrl = options.ytmp3download;
-            
-            if (downloadUrl) {
-              openDownloadSite(downloadUrl);
-            } else {
-              // 如果没有可用的下载选项，使用默认的y2mate
-              openDownloadSite(`https://www.y2mate.com/youtube-mp3/${extractedVideoId}`);
+          // 监听关闭消息
+          window.addEventListener('message', function closeIframe(event) {
+            if (event.data === 'close-iframe') {
+              document.body.removeChild(iframe);
+              window.removeEventListener('message', closeIframe);
             }
-          } else {
-            // 如果没有下载选项，使用默认的y2mate
-            openDownloadSite(`https://www.y2mate.com/youtube-mp3/${extractedVideoId}`);
-          }
+          });
         }
         
         setStatus('success');
