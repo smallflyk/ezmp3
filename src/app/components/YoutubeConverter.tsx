@@ -101,18 +101,38 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        setStatus('loading');
-        
-        // Open Y2mate in a new tab for reliable conversion and download
+        // Generate download URL
         const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
-        window.open(downloadApiUrl, '_blank');
         
-        // Show download guide
-        setShowGuide(true);
+        // Method 1: Use hidden iframe for background download
+        const downloadFrame = document.createElement('iframe');
+        downloadFrame.style.display = 'none';
+        downloadFrame.src = downloadApiUrl;
+        document.body.appendChild(downloadFrame);
         
-        // Notify user with clear instructions
-        alert('We have opened Y2mate in a new tab to process your download. Please follow the instructions in the new tab to download a properly formatted MP3 file.');
+        // Set up monitor and cleanup
+        setTimeout(() => {
+          if (document.body.contains(downloadFrame)) {
+            document.body.removeChild(downloadFrame);
+          }
+        }, 30000); // 30 second timeout for download
         
+        // Method 2: Also try direct window.location approach as backup in new tab if needed
+        const backupDownloadWindow = window.open(downloadApiUrl, '_blank');
+        if (backupDownloadWindow) {
+          // Auto-close the backup window after a few seconds
+          setTimeout(() => {
+            try {
+              if (!backupDownloadWindow.closed) {
+                backupDownloadWindow.close();
+              }
+            } catch (e) {
+              // Ignore errors from cross-origin window operations
+            }
+          }, 5000);
+        }
+        
+        // Show success immediately without alert
         setStatus('success');
       } else {
         throw new Error('Conversion failed');
@@ -271,37 +291,29 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           </div>
         )}
         
-        {/* Download Guide Component */}
+        {/* 下载指南组件 */}
         {showGuide && (
           <div className="mt-6 p-5 bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg border border-blue-200 dark:border-blue-800">
             <h3 className="font-bold text-lg mb-3">
-              Y2mate Download Guide
+              Download Guide
             </h3>
             <ol className="list-decimal pl-5 space-y-2">
-              <li>Wait for Y2mate to load in the new tab</li>
-              <li>Y2mate will automatically detect the YouTube video</li>
-              <li>Select <strong>Audio (MP3)</strong> format from the options</li>
-              <li>Choose your preferred quality (128kbps is recommended)</li>
-              <li>Click the <strong>Download</strong> button</li>
-              <li>Wait for the conversion to complete</li>
-              <li>Your MP3 file will download automatically</li>
+              <li>Wait for website to load</li>
+              <li>Select MP3 format</li>
+              <li>Choose quality</li>
+              <li>Click download button</li>
+              <li>Download file</li>
             </ol>
-            <div className="mt-4 text-sm bg-yellow-50 p-3 rounded-md border border-yellow-200">
-              <p className="font-medium mb-1">
-                Important Notes:
+            <div className="mt-4 text-sm">
+              <p className="font-medium">
+                Tip: If website doesn't work, try other options
               </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Y2mate provides properly formatted MP3 files that work with all media players</li>
-                <li>If you see ads or popups, you can safely close them</li>
-                <li>Some browsers may block popups - please allow popups for the download site</li>
-                <li>The download process takes about 30-60 seconds depending on the video length</li>
-              </ul>
             </div>
             <button 
               onClick={() => setShowGuide(false)}
               className="mt-4 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 text-sm font-medium"
             >
-              Close Guide
+              Close
             </button>
           </div>
         )}

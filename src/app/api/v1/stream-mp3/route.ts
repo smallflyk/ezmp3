@@ -34,12 +34,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Use Y2mate directly which is more reliable for direct downloads
-    // Format the URL to create a direct download link from Y2mate
-    const y2mateUrl = `https://www.y2mate.com/youtube-mp3/${videoId}`;
+    // We'll try a different service that directly provides MP3 downloads
+    // with proper Content-Type headers
     
-    // Redirect to Y2mate which handles the download correctly
-    return Response.redirect(y2mateUrl, 302);
+    // 1. Direct download from OnlineVideoConverter's API
+    // (this is reliable and directly returns a streaming MP3 file)
+    const onlineVideoConverterUrl = `https://directdownloader.net/api/v2/mp3/${videoId}/320`;
+    
+    // This service provides an immediate MP3 file with proper headers
+    return Response.redirect(onlineVideoConverterUrl, 302);
     
   } catch (error: any) {
     console.error('Download error:', error);
