@@ -101,120 +101,26 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        // 直接使用Fetch API获取音频内容
+        // 直接下载MP3文件
         setStatus('loading');
-        const downloadFileName = `YouTube_${extractedVideoId}.mp3`;
         
-        // 创建隐藏的下载框架
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
+        // 生成下载链接
+        const downloadUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
         
-        // 设置iframe内容
-        const iframeDoc = iframe.contentWindow?.document;
-        if (iframeDoc) {
-          iframeDoc.open();
-          iframeDoc.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>下载MP3</title>
-              <style>
-                body {
-                  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  margin: 0;
-                  padding: 20px;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                  height: 100vh;
-                  background-color: #f9fafb;
-                  color: #1f2937;
-                }
-                .container {
-                  max-width: 600px;
-                  text-align: center;
-                }
-                h2 {
-                  margin-bottom: 1.5rem;
-                }
-                .download-btn {
-                  display: inline-block;
-                  padding: 12px 20px;
-                  background-color: #10b981;
-                  color: white;
-                  font-weight: bold;
-                  text-decoration: none;
-                  border-radius: 8px;
-                  margin: 1rem 0;
-                  border: none;
-                  cursor: pointer;
-                  font-size: 1rem;
-                }
-                .secondary-btn {
-                  display: inline-block;
-                  margin-top: 1rem;
-                  padding: 8px 16px;
-                  background-color: #4b5563;
-                  color: white;
-                  text-decoration: none;
-                  border-radius: 6px;
-                  font-size: 0.875rem;
-                }
-                .note {
-                  margin-top: 2rem;
-                  font-size: 0.875rem;
-                  color: #6b7280;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h2>${language === 'zh' ? '准备下载您的MP3文件' : 'Ready to download your MP3 file'}</h2>
-                <p>${language === 'zh' ? '点击下方按钮开始下载' : 'Click the button below to start your download'}</p>
-                <a href="https://www.y2mate.com/youtube-mp3/${extractedVideoId}" class="download-btn" target="_blank">
-                  ${language === 'zh' ? '下载 MP3' : 'Download MP3'}
-                </a>
-                <p class="note">
-                  ${language === 'zh' 
-                    ? '提示：如果下载未自动开始，请点击上方按钮' 
-                    : 'Tip: If download doesn\'t start automatically, click the button above'}
-                </p>
-                <a href="#" class="secondary-btn" id="closeBtn">
-                  ${language === 'zh' ? '关闭' : 'Close'}
-                </a>
-              </div>
-              <script>
-                document.getElementById('closeBtn').addEventListener('click', function(e) {
-                  e.preventDefault();
-                  window.parent.postMessage('close-iframe', '*');
-                });
-              </script>
-            </body>
-            </html>
-          `);
-          iframeDoc.close();
-          
-          // 设置iframe样式以覆盖整个页面
-          iframe.style.position = 'fixed';
-          iframe.style.top = '0';
-          iframe.style.left = '0';
-          iframe.style.width = '100%';
-          iframe.style.height = '100%';
-          iframe.style.zIndex = '9999';
-          iframe.style.border = 'none';
-          iframe.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-          
-          // 监听关闭消息
-          window.addEventListener('message', function closeIframe(event) {
-            if (event.data === 'close-iframe') {
-              document.body.removeChild(iframe);
-              window.removeEventListener('message', closeIframe);
-            }
-          });
-        }
+        // 创建下载链接并自动点击
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.setAttribute('download', `YouTube_${extractedVideoId}.mp3`);
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
         
+        // 显示下载提示
+        const downloadMessage = language === 'zh' 
+          ? '下载已开始！如果文件没有自动下载，请检查浏览器的下载设置。' 
+          : 'Download started! If the file did not download automatically, please check your browser download settings.';
+        
+        alert(downloadMessage);
         setStatus('success');
       } else {
         throw new Error(language === 'zh' ? '转换失败' : 'Conversion failed');
