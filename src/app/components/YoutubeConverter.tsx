@@ -59,7 +59,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     e.preventDefault();
     
     if (!isValidYoutubeUrl(url)) {
-      alert('Please enter a valid YouTube URL');
+      alert(translations.downloadGuide?.alertMessage || 'Please enter a valid YouTube URL');
       return;
     }
     
@@ -84,7 +84,6 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     
     try {
       setDownloading(true);
-      setStatus('loading');
       setDownloadError(null);
       
       const extractedVideoId = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
@@ -92,51 +91,51 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         throw new Error('Could not extract video ID');
       }
       
-      // Get download options
-      const response = await fetch(`/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`);
-      const data = await response.json();
+      // Generate download URL
+      const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
+      
+      // Use direct fetch and blob download approach
+      const response = await fetch(downloadApiUrl);
       
       if (!response.ok) {
-        throw new Error(data.error || 'Download failed');
+        let errorMessage = 'Download failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
       
-      if (data.success) {
-        // Generate download URL
-        const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
-        
-        // Method 1: Use hidden iframe for background download
-        const downloadFrame = document.createElement('iframe');
-        downloadFrame.style.display = 'none';
-        downloadFrame.src = downloadApiUrl;
-        document.body.appendChild(downloadFrame);
-        
-        // Set up monitor and cleanup
-        setTimeout(() => {
-          if (document.body.contains(downloadFrame)) {
-            document.body.removeChild(downloadFrame);
-          }
-        }, 30000); // 30 second timeout for download
-        
-        // Method 2: Also try direct window.location approach as backup in new tab if needed
-        const backupDownloadWindow = window.open(downloadApiUrl, '_blank');
-        if (backupDownloadWindow) {
-          // Auto-close the backup window after a few seconds
-          setTimeout(() => {
-            try {
-              if (!backupDownloadWindow.closed) {
-                backupDownloadWindow.close();
-              }
-            } catch (e) {
-              // Ignore errors from cross-origin window operations
-            }
-          }, 5000);
+      // Get filename from Content-Disposition header if available
+      let filename = `youtube-${extractedVideoId}.mp3`;
+      const contentDisposition = response.headers.get('Content-Disposition');
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
         }
-        
-        // Show success immediately without alert
-        setStatus('success');
-      } else {
-        throw new Error('Conversion failed');
       }
+      
+      // Convert response to blob
+      const blob = await response.blob();
+      
+      // Create a blob URL and trigger download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = filename;
+      downloadLink.style.display = 'none';
+      document.body.appendChild(downloadLink);
+      
+      // Trigger download and clean up
+      downloadLink.click();
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(downloadLink);
+      
+      setStatus('success');
     } catch (error) {
       console.error('Download error:', error);
       setStatus('error');

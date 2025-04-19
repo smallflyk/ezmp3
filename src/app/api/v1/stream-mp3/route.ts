@@ -34,15 +34,58 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // We'll try a different service that directly provides MP3 downloads
-    // with proper Content-Type headers
+    // Get the video title to use in the filename (optional)
+    // Try to get video info from API
+    let filename = `youtube-${videoId}.mp3`;
+    try {
+      const apiUrl = `https://directdownloader.net/api/v2/info/${videoId}`;
+      const infoResponse = await fetch(apiUrl);
+      if (infoResponse.ok) {
+        const info = await infoResponse.json();
+        if (info.title) {
+          // Clean the title to make it a valid filename
+          filename = `${info.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}.mp3`;
+        }
+      }
+    } catch (error) {
+      console.warn('Could not get video title, using default filename');
+    }
+
+    // URL to the third-party service that provides MP3
+    const mp3ServiceUrl = `https://directdownloader.net/api/v2/mp3/${videoId}/320`;
     
-    // 1. Direct download from OnlineVideoConverter's API
-    // (this is reliable and directly returns a streaming MP3 file)
-    const onlineVideoConverterUrl = `https://directdownloader.net/api/v2/mp3/${videoId}/320`;
+    // Fetch the MP3 file from the service
+    const mp3Response = await fetch(mp3ServiceUrl);
     
-    // This service provides an immediate MP3 file with proper headers
-    return Response.redirect(onlineVideoConverterUrl, 302);
+    if (!mp3Response.ok) {
+      return new Response(JSON.stringify({ error: 'Failed to get MP3 file from conversion service' }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Get the response body as a readable stream
+    const mp3Stream = mp3Response.body;
+    
+    if (!mp3Stream) {
+      return new Response(JSON.stringify({ error: 'Failed to get MP3 stream' }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Return the MP3 stream directly to the client with proper headers
+    return new Response(mp3Stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        // Disable caching to ensure fresh content
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
     
   } catch (error: any) {
     console.error('Download error:', error);
