@@ -2,7 +2,6 @@
 
 import React from 'react';
 import enTranslations from '../locales/en.json';
-import zhTranslations from '../locales/zh.json';
 
 interface Translation {
   hero: {
@@ -48,25 +47,22 @@ interface LanguageContextType {
   translations: Translation;
 }
 
+// 设置默认语言为英文
 const defaultLanguageContext: LanguageContextType = {
-  language: 'zh',
+  language: 'en',
   setLanguage: () => {},
-  translations: zhTranslations,
+  translations: enTranslations,
 };
 
 const LanguageContext = React.createContext<LanguageContextType>(defaultLanguageContext);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = React.useState<string>('zh');
-  const [translations, setTranslations] = React.useState<Translation>(zhTranslations);
+  // 固定使用英文
+  const [language] = React.useState<string>('en');
+  const [translations] = React.useState<Translation>(enTranslations);
 
-  React.useEffect(() => {
-    if (language === 'en') {
-      setTranslations(enTranslations);
-    } else {
-      setTranslations(zhTranslations);
-    }
-  }, [language]);
+  // 空函数，不做任何更改
+  const setLanguage = () => {};
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, translations }}>

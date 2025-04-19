@@ -89,7 +89,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       
       const extractedVideoId = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
       if (!extractedVideoId) {
-        throw new Error(language === 'zh' ? '无法提取视频ID' : 'Could not extract video ID');
+        throw new Error('Could not extract video ID');
       }
       
       // 获取下载选项
@@ -97,7 +97,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || (language === 'zh' ? '下载失败' : 'Download failed'));
+        throw new Error(data.error || 'Download failed');
       }
       
       if (data.success) {
@@ -123,22 +123,18 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         }, 5000);
         
         // 通知用户
-        const downloadMessage = language === 'zh' 
-          ? '下载已开始！如果文件没有自动下载，请检查浏览器的弹出窗口设置。' 
-          : 'Download started! If the file did not download automatically, please check your browser popup settings.';
+        const downloadMessage = 'Download started! If the file did not download automatically, please check your browser popup settings.';
         
         alert(downloadMessage);
         setStatus('success');
       } else {
-        throw new Error(language === 'zh' ? '转换失败' : 'Conversion failed');
+        throw new Error('Conversion failed');
       }
     } catch (error) {
-      console.error('下载错误:', error);
+      console.error('Download error:', error);
       setStatus('error');
       setDownloadError(
-        language === 'zh' 
-          ? `下载失败: ${error instanceof Error ? error.message : '未知错误'}` 
-          : `Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     } finally {
       setDownloading(false);
@@ -150,9 +146,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     const newWindow = window.open(url, '_blank');
     // 如果浏览器阻止了弹出窗口
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      const popupBlockedMessage = language === 'zh' 
-        ? '浏览器阻止了弹出窗口。请允许弹出窗口后重试。' 
-        : 'Your browser blocked the popup. Please allow popups and try again.';
+      const popupBlockedMessage = 'Your browser blocked the popup. Please allow popups and try again.';
       
       alert(popupBlockedMessage);
     }
@@ -211,7 +205,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {translations.bitrate || "音质选择"}
+                {translations.bitrate || "Audio Quality"}
               </label>
               <select
                 value={bitrate}
@@ -280,7 +274,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
                 disabled={downloading}
                 className="mt-4 inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50"
               >
-                {downloading ? (translations.downloading || "下载中...") : (translations.download || "下载 MP3")}
+                {downloading ? (translations.downloading || "Downloading...") : (translations.download || "Download MP3")}
               </button>
             )}
             
@@ -294,28 +288,25 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         {showGuide && (
           <div className="mt-6 p-5 bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg border border-blue-200 dark:border-blue-800">
             <h3 className="font-bold text-lg mb-3">
-              {language === 'zh' ? '下载指南' : 'Download Guide'}
+              Download Guide
             </h3>
             <ol className="list-decimal pl-5 space-y-2">
-              <li>{language === 'zh' ? '等待网站加载完成' : 'Wait for website to load'}</li>
-              <li>{language === 'zh' ? '选择MP3格式' : 'Select MP3 format'}</li>
-              <li>{language === 'zh' ? '选择音质' : 'Choose quality'}</li>
-              <li>{language === 'zh' ? '点击下载按钮' : 'Click download button'}</li>
-              <li>{language === 'zh' ? '下载文件' : 'Download file'}</li>
+              <li>Wait for website to load</li>
+              <li>Select MP3 format</li>
+              <li>Choose quality</li>
+              <li>Click download button</li>
+              <li>Download file</li>
             </ol>
             <div className="mt-4 text-sm">
               <p className="font-medium">
-                {language === 'zh' ? '提示：' : 'Tip: '}
-                {language === 'zh' 
-                  ? '如果网站无法工作，请尝试其他选项' 
-                  : 'If website doesn\'t work, try other options'}
+                Tip: If website doesn't work, try other options
               </p>
             </div>
             <button 
               onClick={() => setShowGuide(false)}
               className="mt-4 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 text-sm font-medium"
             >
-              {language === 'zh' ? '关闭' : 'Close'}
+              Close
             </button>
           </div>
         )}

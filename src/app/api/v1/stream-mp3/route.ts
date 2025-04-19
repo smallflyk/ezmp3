@@ -25,25 +25,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 提取视频ID
+    // Extract video ID
     const videoId = url.match(youtubeUrlRegex)?.[4];
     if (!videoId) {
-      return new Response(JSON.stringify({ error: '无法提取视频ID' }), { 
+      return new Response(JSON.stringify({ error: 'Could not extract video ID' }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // 使用可靠的第三方服务 - 使用ytmp3.cc (可靠的下载服务)
+    // Use reliable third-party service - yt-download.org (reliable download service)
     const downloadUrl = `https://www.yt-download.org/api/button/mp3/${videoId}`;
     
-    // 重定向到下载URL
+    // Redirect to download URL
     return Response.redirect(downloadUrl, 302);
     
   } catch (error: any) {
-    console.error('下载处理出错:', error);
-    const errorMessage = error.message || '未知错误';
-    return new Response(JSON.stringify({ error: `下载失败: ${errorMessage}` }), { 
+    console.error('Download error:', error);
+    const errorMessage = error.message || 'Unknown error';
+    return new Response(JSON.stringify({ error: `Download failed: ${errorMessage}` }), { 
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
