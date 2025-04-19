@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 // YouTube URL validation regex
 const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[\?&].+)?$/;
 
@@ -35,10 +38,18 @@ export async function GET(request: NextRequest) {
 
     // 直接下载模式 - 返回下载选项而不是重定向
     if (mode === 'download') {
+      // 获取下载选项
       return NextResponse.json({
         success: true,
         videoId,
         bitrate,
+        mp3Options: {
+          // 提供多种直接下载选项
+          direct: `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
+          alternative: `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
+          backup: `/api/v1/mp3-backup?id=${videoId}&bitrate=${bitrate}`
+        },
+        // 备选第三方网站下载选项
         downloadOptions: {
           ssyoutube: `https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${videoId}`,
           yt1s: `https://yt1s.com/youtube-to-mp3/youtube-to-mp3?url=https://www.youtube.com/watch?v=${videoId}`,
@@ -57,6 +68,13 @@ export async function GET(request: NextRequest) {
       success: true,
       title: `YouTube Video ${videoId}`,
       videoId,
+      // 提供直接下载接口
+      mp3Options: {
+        direct: `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
+        alternative: `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
+        backup: `/api/v1/mp3-backup?id=${videoId}&bitrate=${bitrate}`
+      },
+      // 备选第三方网站下载选项
       downloadOptions: {
         ssyoutube: `https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${videoId}`,
         yt1s: `https://yt1s.com/youtube-to-mp3/youtube-to-mp3?url=https://www.youtube.com/watch?v=${videoId}`,

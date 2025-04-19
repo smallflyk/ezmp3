@@ -91,70 +91,62 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         throw new Error('Could not extract video ID');
       }
       
-      // Generate download URL with bitrate parameter
-      const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
+      console.log('开始尝试下载...');
       
-      console.log('Requesting MP3 download from:', downloadApiUrl);
-      
-      // Use direct fetch and blob download approach with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-      
-      try {
-        const response = await fetch(downloadApiUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          let errorMessage = 'Download failed';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } catch (e) {
-            // If response is not JSON, use status text
-            errorMessage = response.statusText || errorMessage;
-          }
-          throw new Error(errorMessage);
-        }
-        
-        // Get filename from Content-Disposition header if available
-        let filename = `youtube-${extractedVideoId}.mp3`;
-        const contentDisposition = response.headers.get('Content-Disposition');
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
-          }
-        }
-        
-        // Convert response to blob
-        const blob = await response.blob();
-        
-        // Verify it's an audio file
-        if (blob.type !== 'audio/mpeg' && !blob.type.includes('audio/')) {
-          console.warn('Received non-audio content:', blob.type);
-          // Try to process it anyway, it might be mislabeled
-        }
-        
-        // Create a blob URL and trigger download
-        const blobUrl = window.URL.createObjectURL(blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = filename;
-        downloadLink.style.display = 'none';
-        document.body.appendChild(downloadLink);
-        
-        // Trigger download and clean up
-        downloadLink.click();
-        window.URL.revokeObjectURL(blobUrl);
-        document.body.removeChild(downloadLink);
-        
-        setStatus('success');
-      } catch (fetchError: any) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Download request timed out. Please try again or try a different video.');
-        }
-        throw fetchError;
+      // 先获取下载选项
+      const optionsResponse = await fetch(`/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`);
+      if (!optionsResponse.ok) {
+        throw new Error('无法获取下载选项');
       }
+      
+      const optionsData = await optionsResponse.json();
+      console.log('获取到下载选项:', optionsData);
+      
+      // 尝试不同的下载方法，直到成功
+      let downloadSuccess = false;
+      
+      // 尝试方法1: 直接使用主API
+      if (!downloadSuccess && optionsData.mp3Options?.direct) {
+        try {
+          console.log('尝试主API下载...');
+          await downloadMp3File(optionsData.mp3Options.direct, extractedVideoId);
+          downloadSuccess = true;
+          console.log('主API下载成功!');
+        } catch (error) {
+          console.error('主API下载失败:', error);
+        }
+      }
+      
+      // 尝试方法2: 使用替代API
+      if (!downloadSuccess && optionsData.mp3Options?.alternative) {
+        try {
+          console.log('尝试替代API下载...');
+          await downloadMp3File(optionsData.mp3Options.alternative, extractedVideoId);
+          downloadSuccess = true;
+          console.log('替代API下载成功!');
+        } catch (error) {
+          console.error('替代API下载失败:', error);
+        }
+      }
+      
+      // 尝试方法3: 使用备用API
+      if (!downloadSuccess && optionsData.mp3Options?.backup) {
+        try {
+          console.log('尝试备用API下载...');
+          await downloadMp3File(optionsData.mp3Options.backup, extractedVideoId);
+          downloadSuccess = true;
+          console.log('备用API下载成功!');
+        } catch (error) {
+          console.error('备用API下载失败:', error);
+        }
+      }
+      
+      // 如果所有方法都失败，显示错误
+      if (!downloadSuccess) {
+        throw new Error('所有下载方法均失败，请尝试使用第三方网站');
+      }
+      
+      setStatus('success');
     } catch (error) {
       console.error('Download error:', error);
       setStatus('error');
@@ -166,6 +158,98 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     }
   };
   
+  // 辅助函数：从指定的API URL下载MP3文件
+  const downloadMp3File = async (apiUrl: string, videoId: string) => {
+    // 添加超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+    
+    try {
+      // 发送下载请求
+      const response = await fetch(apiUrl, { signal: controller.signal });
+      
+      // 确保清除超时
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        // 检查是否返回JSON错误
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || '下载失败');
+        } catch (e) {
+          // 如果不是JSON，返回HTTP状态错误
+          throw new Error(`下载失败，状态码: ${response.status}`);
+        }
+      }
+      
+      // 检查内容类型，判断是否为JSON响应而非MP3
+      const contentType = response.headers.get('Content-Type');
+      if (contentType && contentType.includes('application/json')) {
+        // 这是JSON响应，可能包含错误信息或外部链接
+        const jsonData = await response.json();
+        
+        if (jsonData.error) {
+          throw new Error(jsonData.error);
+        }
+        
+        if (jsonData.externalLink) {
+          // 如果提供了外部链接，在新窗口打开
+          window.open(jsonData.externalLink, '_blank');
+          throw new Error('重定向到外部下载链接');
+        }
+        
+        throw new Error('API返回了非MP3响应');
+      }
+      
+      // 获取文件名，默认使用视频ID
+      let filename = `youtube-${videoId}.mp3`;
+      const contentDisposition = response.headers.get('Content-Disposition');
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      // 获取Blob数据
+      const blob = await response.blob();
+      
+      // 检查blob类型，确保是音频
+      if (!blob.type.includes('audio/') && !blob.type.includes('application/octet-stream')) {
+        console.warn(`警告: 收到非音频内容类型: ${blob.type}`);
+      }
+      
+      // 确保至少有一些数据
+      if (blob.size < 1000) {
+        throw new Error('下载的文件太小，可能不是有效的MP3');
+      }
+      
+      // 创建下载链接并触发下载
+      const blobUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = filename;
+      downloadLink.style.display = 'none';
+      document.body.appendChild(downloadLink);
+      
+      // 触发下载
+      downloadLink.click();
+      
+      // 清理
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(downloadLink);
+      
+      // 下载成功
+      return true;
+    } catch (error) {
+      // 确保清除超时
+      clearTimeout(timeoutId);
+      
+      // 重新抛出错误，让调用者处理
+      throw error;
+    }
+  };
+
   // 辅助函数：打开下载网站
   const openDownloadSite = (url: string) => {
     const newWindow = window.open(url, '_blank');
