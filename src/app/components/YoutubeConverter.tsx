@@ -101,24 +101,31 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        // 直接下载MP3文件
         setStatus('loading');
         
-        // 生成下载链接
-        const downloadUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
+        // 通过打开新窗口方式下载
+        const downloadApiUrl = `/api/v1/stream-mp3?url=${encodeURIComponent(url)}`;
         
-        // 创建下载链接并自动点击
-        const downloadLink = document.createElement('a');
-        downloadLink.href = downloadUrl;
-        downloadLink.setAttribute('download', `YouTube_${extractedVideoId}.mp3`);
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
+        // 方法1：在新窗口打开下载链接 - 这种方法在大多数浏览器上工作良好
+        window.open(downloadApiUrl, '_blank');
         
-        // 显示下载提示
+        // 方法2：使用隐藏的iframe作为备用
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = downloadApiUrl;
+        document.body.appendChild(iframe);
+        
+        // 5秒后删除iframe
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 5000);
+        
+        // 通知用户
         const downloadMessage = language === 'zh' 
-          ? '下载已开始！如果文件没有自动下载，请检查浏览器的下载设置。' 
-          : 'Download started! If the file did not download automatically, please check your browser download settings.';
+          ? '下载已开始！如果文件没有自动下载，请检查浏览器的弹出窗口设置。' 
+          : 'Download started! If the file did not download automatically, please check your browser popup settings.';
         
         alert(downloadMessage);
         setStatus('success');
