@@ -86,13 +86,13 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       setDownloading(true);
       setStatus('loading');
       setDownloadError(null);
-      setShowGuide(true);
       
       const extractedVideoId = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
       if (!extractedVideoId) {
         throw new Error(language === 'zh' ? '无法提取视频ID' : 'Could not extract video ID');
       }
       
+      // 获取下载选项
       const response = await fetch(`/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`);
       const data = await response.json();
       
@@ -101,35 +101,67 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       }
       
       if (data.success) {
-        const alertMessage = language === 'zh' 
-          ? '即将打开转换网站，请按照下载指南完成下载。' 
-          : 'The conversion website will open. Please follow the download guide.';
+        // 使用直接下载方式
+        const directDownloadMessage = language === 'zh' 
+          ? '是否直接下载MP3文件？选择"是"将直接下载，选择"否"将跳转到第三方网站。' 
+          : 'Do you want to download the MP3 file directly? Select "Yes" to download directly, or "No" to redirect to a third-party site.';
         
-        alert(alertMessage);
-        
-        if (data.downloadOptions) {
-          const options = data.downloadOptions;
-          let downloadUrl = null;
+        if (confirm(directDownloadMessage)) {
+          // 直接从后端下载
+          setStatus('loading');
           
-          // 按优先级尝试不同的下载选项
-          if (options.ssyoutube) downloadUrl = options.ssyoutube;
-          else if (options.yt1s) downloadUrl = options.yt1s;
-          else if (options.savefrom) downloadUrl = options.savefrom;
-          else if (options.y2mate) downloadUrl = options.y2mate;
-          else if (options.flvto) downloadUrl = options.flvto;
-          else if (options.converterbear) downloadUrl = options.converterbear;
-          else if (options.onlinevideoconverter) downloadUrl = options.onlinevideoconverter;
-          else if (options.ytmp3download) downloadUrl = options.ytmp3download;
+          // 创建下载链接
+          const backendUrl = `/api/v1/direct-download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
           
-          if (downloadUrl) {
-            openDownloadSite(downloadUrl);
+          // 创建下载链接并自动点击
+          const downloadLink = document.createElement('a');
+          downloadLink.href = backendUrl;
+          downloadLink.setAttribute('download', `${data.title || `youtube_${extractedVideoId}`}.mp3`);
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          
+          // 等待一段时间以使下载开始
+          setTimeout(() => {
+            setStatus('success');
+            
+            // 显示下载指南
+            setShowGuide(true);
+          }, 1000);
+        } else {
+          // 使用第三方网站下载
+          setShowGuide(true);
+          
+          const alertMessage = language === 'zh' 
+            ? '即将打开转换网站，请按照下载指南完成下载。' 
+            : 'The conversion website will open. Please follow the download guide.';
+          
+          alert(alertMessage);
+          
+          if (data.downloadOptions) {
+            const options = data.downloadOptions;
+            let downloadUrl = null;
+            
+            // 按优先级尝试不同的下载选项
+            if (options.ssyoutube) downloadUrl = options.ssyoutube;
+            else if (options.yt1s) downloadUrl = options.yt1s;
+            else if (options.savefrom) downloadUrl = options.savefrom;
+            else if (options.y2mate) downloadUrl = options.y2mate;
+            else if (options.flvto) downloadUrl = options.flvto;
+            else if (options.converterbear) downloadUrl = options.converterbear;
+            else if (options.onlinevideoconverter) downloadUrl = options.onlinevideoconverter;
+            else if (options.ytmp3download) downloadUrl = options.ytmp3download;
+            
+            if (downloadUrl) {
+              openDownloadSite(downloadUrl);
+            } else {
+              // 如果没有可用的下载选项，使用默认的ssyoutube
+              openDownloadSite(`https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${extractedVideoId}`);
+            }
           } else {
-            // 如果没有可用的下载选项，使用默认的ssyoutube
+            // 如果没有下载选项，使用默认的ssyoutube
             openDownloadSite(`https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${extractedVideoId}`);
           }
-        } else {
-          // 如果没有下载选项，使用默认的ssyoutube
-          openDownloadSite(`https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${extractedVideoId}`);
         }
         
         setStatus('success');
