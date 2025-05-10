@@ -57,6 +57,9 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
   const [bitrate, setBitrate] = React.useState<string>('128');
   const [showGuide, setShowGuide] = React.useState(false);
   const [videoInfo, setVideoInfo] = React.useState<VideoInfo | null>(null);
+  const [downloadProgress, setDownloadProgress] = React.useState<number>(0);
+  const [downloadSize, setDownloadSize] = React.useState<string>('0 MB');
+  const [downloadSpeed, setDownloadSpeed] = React.useState<string>('0 MB/s');
   const { language } = useLanguage();
   
   const isValidYoutubeUrl = (url: string) => {
@@ -132,6 +135,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     if (!videoInfo || !url) return;
     setDownloading(true);
     setDownloadError(null);
+    setDownloadProgress(0);
 
     try {
       // 记录尝试过的方法，避免重复尝试
@@ -260,9 +264,25 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     } catch (error) {
       console.error('下载错误:', error);
       setStatus('error');
-      setDownloadError(
-        `下载失败: ${error instanceof Error ? error.message : '未知错误'}`
-      );
+      
+      // 提供更详细的错误信息和建议
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      let errorWithSuggestion = `下载失败: ${errorMessage}`;
+      
+      // 根据错误类型提供建议
+      if (errorMessage.includes('找不到MP3下载ID') || errorMessage.includes('无法提取')) {
+        errorWithSuggestion += `\n建议: 请尝试蓝色的"一键直接下载"按钮，或稍后再试。`;
+      } else if (errorMessage.includes('状态码: 5')) {
+        errorWithSuggestion += `\n建议: 服务器暂时不可用，请稍后再试。`;
+      } else if (errorMessage.includes('下载的文件太小')) {
+        errorWithSuggestion += `\n建议: 视频可能受到版权保护，请尝试蓝色的"一键直接下载"按钮。`;
+      } else if (errorMessage.includes('超时')) {
+        errorWithSuggestion += `\n建议: 网络连接不稳定，请检查您的网络后重试。`;
+      } else {
+        errorWithSuggestion += `\n建议: 请尝试蓝色的"一键直接下载"按钮，或切换到其他音质。`;
+      }
+      
+      setDownloadError(errorWithSuggestion);
       
       // 尝试打开fallback API作为最后的备选方案
       try {
@@ -285,126 +305,256 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     try {
       // 更新状态为加载中
       setStatus('loading');
+      setDownloadProgress(0);
+      setDownloadSize('计算中...');
+      setDownloadSpeed('0 MB/s');
       
       // 记录下载开始时间（用于计算下载速度）
       const startTime = Date.now();
-      
-      // 发送下载请求
-      const response = await fetch(apiUrl, { signal: controller.signal });
-      
-      // 确保清除超时
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        // 检查是否返回JSON错误
-        try {
-          const contentType = response.headers.get('Content-Type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            
-            // 如果返回了外部链接，直接打开它
-            if (errorData.externalLink) {
-              console.log('收到外部下载链接，尝试打开:', errorData.externalLink);
-              window.open(errorData.externalLink, '_blank');
-              throw new Error(errorData.error || errorData.message || '下载失败，已打开外部链接');
+
+      // 检查是否是直接调用本地API还是其他网站的API
+      if (apiUrl.startsWith('/api/')) {
+        // 本地API，可以使用fetch
+        const response = await fetch(apiUrl, { signal: controller.signal });
+        
+        // 确保清除超时
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          // 检查是否返回JSON错误
+          try {
+            const contentType = response.headers.get('Content-Type');
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await response.json();
+              
+              // 如果返回了外部链接，直接打开它
+              if (errorData.externalLink) {
+                console.log('收到外部下载链接，尝试打开:', errorData.externalLink);
+                window.open(errorData.externalLink, '_blank');
+                throw new Error(errorData.error || errorData.message || '下载失败，已打开外部链接');
+              }
+              
+              throw new Error(errorData.error || '下载失败');
+            } else {
+              // 如果不是JSON，返回HTTP状态错误
+              throw new Error(`下载失败，状态码: ${response.status}`);
             }
-            
-            throw new Error(errorData.error || '下载失败');
-          } else {
+          } catch (e) {
+            // 重新抛出错误
+            if (e instanceof Error) {
+              throw e;
+            }
             // 如果不是JSON，返回HTTP状态错误
             throw new Error(`下载失败，状态码: ${response.status}`);
           }
-        } catch (e) {
-          // 重新抛出错误
-          if (e instanceof Error) {
-            throw e;
+        }
+        
+        // 检查内容类型，判断是否为JSON响应而非MP3
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+          // 这是JSON响应，可能包含错误信息或外部链接
+          const jsonData = await response.json();
+          
+          if (jsonData.error) {
+            throw new Error(jsonData.error);
           }
-          // 如果不是JSON，返回HTTP状态错误
+          
+          if (jsonData.externalLink) {
+            // 如果提供了外部链接，在新窗口打开
+            console.log('收到外部下载链接，尝试打开:', jsonData.externalLink);
+            window.open(jsonData.externalLink, '_blank');
+            throw new Error('重定向到外部下载链接');
+          }
+          
+          // 特殊处理dlink响应（来自mates API）
+          if (jsonData.dlink && jsonData.status === 'success') {
+            console.log('收到dlink，尝试下载:', jsonData.dlink);
+            // 递归调用自身来处理dlink
+            return await downloadMp3File(jsonData.dlink, videoId);
+          }
+          
+          if (jsonData.status === 'pending') {
+            // 如果转换仍在进行中，等待后重试
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            // 递归重试，最多重试3次
+            return await downloadMp3File(apiUrl, videoId);
+          }
+          
+          throw new Error('API返回了非MP3响应');
+        }
+        
+        // 获取文件大小
+        const contentLength = response.headers.get('Content-Length');
+        const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+        if (totalBytes > 0) {
+          const totalSizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
+          setDownloadSize(`${totalSizeMB} MB`);
+        } else {
+          setDownloadSize('未知大小');
+        }
+        
+        // 获取文件名，默认使用视频ID
+        let filename = `youtube-${videoId}.mp3`;
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        // 使用Response.clone()创建副本用于读取blob
+        const responseClone = response.clone();
+        
+        // 使用ReadableStream API手动读取和跟踪进度
+        const reader = response.body?.getReader();
+        if (reader) {
+          let receivedBytes = 0;
+          const chunks: Uint8Array[] = [];
+          
+          // 读取流
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              break;
+            }
+            
+            chunks.push(value);
+            receivedBytes += value.length;
+            
+            // 更新进度
+            if (totalBytes > 0) {
+              const progress = Math.min(Math.round((receivedBytes / totalBytes) * 100), 100);
+              setDownloadProgress(progress);
+              
+              // 计算并更新下载速度
+              const currentTime = Date.now();
+              const elapsedSeconds = (currentTime - startTime) / 1000;
+              if (elapsedSeconds > 0) {
+                const speedMBps = (receivedBytes / (1024 * 1024)) / elapsedSeconds;
+                setDownloadSpeed(`${speedMBps.toFixed(2)} MB/s`);
+              }
+            }
+          }
+          
+          // 完成下载，使用克隆的响应获取blob
+          const blob = await responseClone.blob();
+          
+          // 计算最终下载速度
+          const endTime = Date.now();
+          const downloadTime = (endTime - startTime) / 1000; // 秒
+          const fileSizeMB = blob.size / (1024 * 1024);
+          const speedMBps = fileSizeMB / downloadTime;
+          console.log(`下载完成: ${fileSizeMB.toFixed(2)} MB, 用时: ${downloadTime.toFixed(1)}秒, 速度: ${speedMBps.toFixed(2)} MB/s`);
+          setDownloadSpeed(`${speedMBps.toFixed(2)} MB/s`);
+          setDownloadProgress(100);
+          
+          // 检查blob类型，确保是音频
+          if (!blob.type.includes('audio/') && !blob.type.includes('application/octet-stream')) {
+            console.warn(`警告: 收到非音频内容类型: ${blob.type}`);
+          }
+          
+          // 确保至少有一些数据
+          if (blob.size < 1000) {
+            throw new Error('下载的文件太小，可能不是有效的MP3');
+          }
+          
+          // 创建下载链接并触发下载
+          const blobUrl = window.URL.createObjectURL(blob);
+          const downloadLink = document.createElement('a');
+          downloadLink.href = blobUrl;
+          downloadLink.download = filename;
+          downloadLink.style.display = 'none';
+          document.body.appendChild(downloadLink);
+          
+          // 触发下载
+          downloadLink.click();
+          
+          // 清理
+          window.URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(downloadLink);
+          
+          // 下载成功
+          return true;
+        } else {
+          // 如果不能获取reader，回退到普通的blob下载
+          const blob = await response.blob();
+          
+          // 计算下载速度
+          const endTime = Date.now();
+          const downloadTime = (endTime - startTime) / 1000; // 秒
+          const fileSizeMB = blob.size / (1024 * 1024);
+          const speedMBps = fileSizeMB / downloadTime;
+          console.log(`下载完成: ${fileSizeMB.toFixed(2)} MB, 用时: ${downloadTime.toFixed(1)}秒, 速度: ${speedMBps.toFixed(2)} MB/s`);
+          
+          // 检查blob类型，确保是音频
+          if (!blob.type.includes('audio/') && !blob.type.includes('application/octet-stream')) {
+            console.warn(`警告: 收到非音频内容类型: ${blob.type}`);
+          }
+          
+          // 确保至少有一些数据
+          if (blob.size < 1000) {
+            throw new Error('下载的文件太小，可能不是有效的MP3');
+          }
+          
+          // 创建下载链接并触发下载
+          const blobUrl = window.URL.createObjectURL(blob);
+          const downloadLink = document.createElement('a');
+          downloadLink.href = blobUrl;
+          downloadLink.download = filename;
+          downloadLink.style.display = 'none';
+          document.body.appendChild(downloadLink);
+          
+          // 触发下载
+          downloadLink.click();
+          
+          // 清理
+          window.URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(downloadLink);
+          
+          // 下载成功
+          return true;
+        }
+      } else {
+        // 外部API，使用基本的fetch方法且不跟踪进度
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
           throw new Error(`下载失败，状态码: ${response.status}`);
         }
-      }
-      
-      // 检查内容类型，判断是否为JSON响应而非MP3
-      const contentType = response.headers.get('Content-Type');
-      if (contentType && contentType.includes('application/json')) {
-        // 这是JSON响应，可能包含错误信息或外部链接
-        const jsonData = await response.json();
         
-        if (jsonData.error) {
-          throw new Error(jsonData.error);
+        const blob = await response.blob();
+        
+        // 计算下载速度
+        const endTime = Date.now();
+        const downloadTime = (endTime - startTime) / 1000; // 秒
+        const fileSizeMB = blob.size / (1024 * 1024);
+        const speedMBps = fileSizeMB / downloadTime;
+        console.log(`外部链接下载完成: ${fileSizeMB.toFixed(2)} MB, 用时: ${downloadTime.toFixed(1)}秒, 速度: ${speedMBps.toFixed(2)} MB/s`);
+        
+        if (blob.size < 1000) {
+          throw new Error('下载的文件太小，可能不是有效的MP3');
         }
         
-        if (jsonData.externalLink) {
-          // 如果提供了外部链接，在新窗口打开
-          console.log('收到外部下载链接，尝试打开:', jsonData.externalLink);
-          window.open(jsonData.externalLink, '_blank');
-          throw new Error('重定向到外部下载链接');
-        }
+        // 创建下载链接并触发下载
+        const fileName = `youtube-${videoId}.mp3`;
+        const blobUrl = window.URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = fileName;
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
         
-        // 特殊处理dlink响应（来自mates API）
-        if (jsonData.dlink && jsonData.status === 'success') {
-          console.log('收到dlink，尝试下载:', jsonData.dlink);
-          // 递归调用自身来处理dlink
-          return await downloadMp3File(jsonData.dlink, videoId);
-        }
+        // 触发下载
+        downloadLink.click();
         
-        if (jsonData.status === 'pending') {
-          // 如果转换仍在进行中，等待后重试
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          // 递归重试，最多重试3次
-          return await downloadMp3File(apiUrl, videoId);
-        }
+        // 清理
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(downloadLink);
         
-        throw new Error('API返回了非MP3响应');
+        return true;
       }
-      
-      // 获取文件名，默认使用视频ID
-      let filename = `youtube-${videoId}.mp3`;
-      const contentDisposition = response.headers.get('Content-Disposition');
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1];
-        }
-      }
-      
-      // 获取Blob数据
-      const blob = await response.blob();
-      
-      // 计算下载速度
-      const endTime = Date.now();
-      const downloadTime = (endTime - startTime) / 1000; // 秒
-      const fileSizeMB = blob.size / (1024 * 1024);
-      const speedMBps = fileSizeMB / downloadTime;
-      console.log(`下载完成: ${fileSizeMB.toFixed(2)} MB, 用时: ${downloadTime.toFixed(1)}秒, 速度: ${speedMBps.toFixed(2)} MB/s`);
-      
-      // 检查blob类型，确保是音频
-      if (!blob.type.includes('audio/') && !blob.type.includes('application/octet-stream')) {
-        console.warn(`警告: 收到非音频内容类型: ${blob.type}`);
-      }
-      
-      // 确保至少有一些数据
-      if (blob.size < 1000) {
-        throw new Error('下载的文件太小，可能不是有效的MP3');
-      }
-      
-      // 创建下载链接并触发下载
-      const blobUrl = window.URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = blobUrl;
-      downloadLink.download = filename;
-      downloadLink.style.display = 'none';
-      document.body.appendChild(downloadLink);
-      
-      // 触发下载
-      downloadLink.click();
-      
-      // 清理
-      window.URL.revokeObjectURL(blobUrl);
-      document.body.removeChild(downloadLink);
-      
-      // 下载成功
-      return true;
     } catch (error) {
       // 确保清除超时
       clearTimeout(timeoutId);
@@ -485,12 +635,18 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
                 onChange={(e: SelectChangeEvent) => setBitrate(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
-                <option value="64">64 kbps</option>
-                <option value="128">128 kbps</option>
-                <option value="192">192 kbps</option>
-                <option value="256">256 kbps</option>
-                <option value="320">320 kbps</option>
+                <option value="64">64 kbps {language === 'zh' ? '(普通质量 ~2MB/分钟)' : '(Basic quality ~2MB/min)'}</option>
+                <option value="128">128 kbps {language === 'zh' ? '(标准质量 ~4MB/分钟)' : '(Standard quality ~4MB/min)'}</option>
+                <option value="192">192 kbps {language === 'zh' ? '(高质量 ~6MB/分钟)' : '(High quality ~6MB/min)'}</option>
+                <option value="256">256 kbps {language === 'zh' ? '(超高质量 ~8MB/分钟)' : '(Very high quality ~8MB/min)'}</option>
+                <option value="320">320 kbps {language === 'zh' ? '(无损质量 ~10MB/分钟)' : '(Lossless quality ~10MB/min)'}</option>
               </select>
+              
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {language === 'zh' 
+                  ? '提示：较低的比特率文件更小，但音质较差。高比特率提供更好的音质，但文件更大。' 
+                  : 'Tip: Lower bitrate gives smaller files but lower quality. Higher bitrate provides better quality but larger files.'}
+              </div>
             </div>
             
             <div className="flex-1">
@@ -586,6 +742,53 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
                         {translations.downloading || "下载中..."}
                       </span>
                     ) : (language === 'zh' ? '尝试其他下载方式' : 'Try alternative download')}
+                  </button>
+                </div>
+                
+                {/* 下载进度条 */}
+                {downloading && (
+                  <div className="mt-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-2 bg-blue-600 rounded-full transition-all duration-300 ease-in-out"
+                      style={{ width: `${downloadProgress}%` }}
+                    ></div>
+                    <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-1 px-1">
+                      <div>{downloadProgress}%</div>
+                      <div>{downloadSize}</div>
+                      <div>{downloadSpeed}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {status === 'error' && downloadError && (
+              <div className="mt-4 bg-red-50 dark:bg-red-900/30 p-3 rounded-lg">
+                <p className="text-red-700 dark:text-red-200 whitespace-pre-line">{downloadError}</p>
+                <div className="mt-2 flex gap-2">
+                  {videoInfo && videoInfo.videoId && (
+                    <a
+                      href={`/api/direct?id=${videoInfo.videoId}`}
+                      className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd"></path>
+                      </svg>
+                      {language === 'zh' ? '尝试直接下载' : 'Try direct download'}
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      setBitrate(bitrate === '128' ? '64' : '128');
+                      setStatus('success');
+                      setDownloadError(null);
+                    }}
+                    className="text-sm bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg inline-flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd"></path>
+                    </svg>
+                    {language === 'zh' ? '切换音质并重试' : 'Change quality and retry'}
                   </button>
                 </div>
               </div>
