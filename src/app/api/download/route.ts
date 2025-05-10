@@ -47,10 +47,12 @@ export async function GET(request: NextRequest) {
           // 提供多种直接下载选项
           direct: `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
           alternative: `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
-          backup: `/api/v1/mp3-backup?id=${videoId}&bitrate=${bitrate}`
+          backup: `/api/v1/mp3-backup?id=${videoId}&bitrate=${bitrate}`,
+          y2mate: `/api/v1/y2mate-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`
         },
         // 备选第三方网站下载选项
         downloadOptions: {
+          y2matenu: `https://www.y2mate.nu/youtube/mp3/?url=https://www.youtube.com/watch?v=${videoId}`,
           ssyoutube: `https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${videoId}`,
           yt1s: `https://yt1s.com/youtube-to-mp3/youtube-to-mp3?url=https://www.youtube.com/watch?v=${videoId}`,
           savefrom: `https://en.savefrom.net/391/youtube-mp3?url=https://www.youtube.com/watch?v=${videoId}`,
@@ -72,10 +74,12 @@ export async function GET(request: NextRequest) {
       mp3Options: {
         direct: `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
         alternative: `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
-        backup: `/api/v1/mp3-backup?id=${videoId}&bitrate=${bitrate}`
+        backup: `/api/v1/mp3-backup?id=${videoId}&bitrate=${bitrate}`,
+        y2mate: `/api/v1/y2mate-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`
       },
       // 备选第三方网站下载选项
       downloadOptions: {
+        y2matenu: `https://www.y2mate.nu/youtube/mp3/?url=https://www.youtube.com/watch?v=${videoId}`,
         ssyoutube: `https://ssyoutube.com/youtube/6?url=https://www.youtube.com/watch?v=${videoId}`,
         yt1s: `https://yt1s.com/youtube-to-mp3/youtube-to-mp3?url=https://www.youtube.com/watch?v=${videoId}`,
         savefrom: `https://en.savefrom.net/391/youtube-mp3?url=https://www.youtube.com/watch?v=${videoId}`,

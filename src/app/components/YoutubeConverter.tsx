@@ -39,6 +39,14 @@ interface SelectChangeEvent extends React.ChangeEvent<HTMLSelectElement> {
   target: HTMLSelectElement;
 }
 
+// 定义视频信息类型
+interface VideoInfo {
+  videoId: string;
+  title: string;
+  thumbnail?: string;
+  duration?: string;
+}
+
 export default function YoutubeConverter({ translations }: ConverterProps) {
   const [url, setUrl] = React.useState('');
   const [status, setStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -48,6 +56,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
   const [downloadError, setDownloadError] = React.useState<string | null>(null);
   const [bitrate, setBitrate] = React.useState<string>('128');
   const [showGuide, setShowGuide] = React.useState(false);
+  const [videoInfo, setVideoInfo] = React.useState<VideoInfo | null>(null);
   const { language } = useLanguage();
   
   const isValidYoutubeUrl = (url: string) => {
@@ -66,6 +75,46 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     setStatus('loading');
     
     try {
+      // 提取视频ID
+      const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+      const videoId = videoIdMatch?.[1];
+      
+      if (!videoId) {
+        throw new Error('无法提取视频ID');
+      }
+      
+      // 获取视频详细信息（使用我们的Mates API）
+      try {
+        const analyzeResponse = await fetch('/api/mates/analyzeV2/ajax', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            k_query: url
+          })
+        });
+        
+        if (analyzeResponse.ok) {
+          const analyzeData = await analyzeResponse.json();
+          if (analyzeData.status === 'success') {
+            // 设置更详细的视频信息
+            setVideoInfo({
+              videoId,
+              title: analyzeData.title,
+              thumbnail: analyzeData.thumbnails
+            });
+          }
+        }
+      } catch (analyzeError) {
+        console.error('获取视频信息失败:', analyzeError);
+        // 如果获取详细信息失败，仍然设置基本信息
+        setVideoInfo({
+          videoId,
+          title: `YouTube 视频 ${videoId}`
+        });
+      }
+      
       // Call download API with bitrate parameter
       const apiUrl = `/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
       setDownloadUrl(apiUrl);
@@ -80,79 +129,101 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
   };
 
   const handleDownload = async () => {
-    if (!url || downloading) return;
-    
+    if (!videoInfo || !url) return;
+    setDownloading(true);
+
     try {
-      setDownloading(true);
-      setDownloadError(null);
+      // 首先尝试使用y2mate API直接下载（作为首选方式）
+      const y2mateApiUrl = `/api/v1/y2mate-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
+      const isY2mateSuccess = await downloadMp3File(y2mateApiUrl, videoInfo.videoId);
       
-      const extractedVideoId = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
-      if (!extractedVideoId) {
-        throw new Error('Could not extract video ID');
+      if (isY2mateSuccess) {
+        setStatus('success');
+        return;
       }
-      
-      console.log('开始尝试下载...');
-      
-      // 先获取下载选项
-      const optionsResponse = await fetch(`/api/download?url=${encodeURIComponent(url)}&bitrate=${bitrate}`);
-      if (!optionsResponse.ok) {
-        throw new Error('无法获取下载选项');
-      }
-      
-      const optionsData = await optionsResponse.json();
-      console.log('获取到下载选项:', optionsData);
-      
-      // 尝试不同的下载方法，直到成功
+
+      // 如果y2mate下载失败，尝试其他API方法
+      // 按照优先级排序
+      const apiUrls = [
+        `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
+        `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
+        `/api/v1/mp3-backup?id=${videoInfo.videoId}&bitrate=${bitrate}`
+      ];
+
       let downloadSuccess = false;
-      
-      // 尝试方法1: 直接使用主API
-      if (!downloadSuccess && optionsData.mp3Options?.direct) {
+      for (const apiUrl of apiUrls) {
         try {
-          console.log('尝试主API下载...');
-          await downloadMp3File(optionsData.mp3Options.direct, extractedVideoId);
-          downloadSuccess = true;
-          console.log('主API下载成功!');
-        } catch (error) {
-          console.error('主API下载失败:', error);
+          const success = await downloadMp3File(apiUrl, videoInfo.videoId);
+          if (success) {
+            downloadSuccess = true;
+            break;
+          }
+        } catch (err) {
+          console.error(`API ${apiUrl} 下载失败:`, err);
+          // 继续尝试下一个API
         }
       }
-      
-      // 尝试方法2: 使用替代API
-      if (!downloadSuccess && optionsData.mp3Options?.alternative) {
-        try {
-          console.log('尝试替代API下载...');
-          await downloadMp3File(optionsData.mp3Options.alternative, extractedVideoId);
-          downloadSuccess = true;
-          console.log('替代API下载成功!');
-        } catch (error) {
-          console.error('替代API下载失败:', error);
-        }
+
+      if (downloadSuccess) {
+        setStatus('success');
+      } else {
+        // 如果所有API都失败，告知用户并提供官方转换接口
+        throw new Error('所有直接下载方法都失败，请尝试我们的在线转换器');
       }
-      
-      // 尝试方法3: 使用备用API
-      if (!downloadSuccess && optionsData.mp3Options?.backup) {
-        try {
-          console.log('尝试备用API下载...');
-          await downloadMp3File(optionsData.mp3Options.backup, extractedVideoId);
-          downloadSuccess = true;
-          console.log('备用API下载成功!');
-        } catch (error) {
-          console.error('备用API下载失败:', error);
-        }
-      }
-      
-      // 如果所有方法都失败，显示错误
-      if (!downloadSuccess) {
-        throw new Error('所有下载方法均失败，请尝试使用第三方网站');
-      }
-      
-      setStatus('success');
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('下载错误:', error);
       setStatus('error');
       setDownloadError(
-        `Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `下载失败: ${error instanceof Error ? error.message : '未知错误'}`
       );
+      
+      // 当直接下载失败时，作为后备方案使用自定义mates API
+      try {
+        // 首先通过analyze API获取视频信息
+        const analyzeResponse = await fetch('/api/mates/analyzeV2/ajax', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            k_query: url
+          })
+        });
+        
+        if (analyzeResponse.ok) {
+          const analyzeData = await analyzeResponse.json();
+          if (analyzeData.status === 'success') {
+            // 然后通过convert API获取下载链接
+            const convertResponse = await fetch('/api/mates/convertV2/index', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                vid: analyzeData.vid,
+                k: analyzeData.k,
+                ftype: 'mp3',
+                fquality: `mp3-${bitrate}`,
+                fname: analyzeData.title
+              })
+            });
+            
+            if (convertResponse.ok) {
+              const convertData = await convertResponse.json();
+              if (convertData.status === 'success' && convertData.dlink) {
+                // 通过生成的dlink下载文件
+                const dlinkSuccess = await downloadMp3File(convertData.dlink, videoInfo.videoId);
+                if (dlinkSuccess) {
+                  setStatus('success');
+                  return;
+                }
+              }
+            }
+          }
+        }
+      } catch (matesError) {
+        console.error('Mates API错误:', matesError);
+      }
     } finally {
       setDownloading(false);
     }
@@ -165,6 +236,12 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
     const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
     
     try {
+      // 更新状态为加载中
+      setStatus('loading');
+      
+      // 记录下载开始时间（用于计算下载速度）
+      const startTime = Date.now();
+      
       // 发送下载请求
       const response = await fetch(apiUrl, { signal: controller.signal });
       
@@ -174,9 +251,27 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       if (!response.ok) {
         // 检查是否返回JSON错误
         try {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '下载失败');
+          const contentType = response.headers.get('Content-Type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            
+            // 如果返回了外部链接，直接打开它
+            if (errorData.externalLink) {
+              console.log('收到外部下载链接，尝试打开:', errorData.externalLink);
+              window.open(errorData.externalLink, '_blank');
+              throw new Error(errorData.error || errorData.message || '下载失败，已打开外部链接');
+            }
+            
+            throw new Error(errorData.error || '下载失败');
+          } else {
+            // 如果不是JSON，返回HTTP状态错误
+            throw new Error(`下载失败，状态码: ${response.status}`);
+          }
         } catch (e) {
+          // 重新抛出错误
+          if (e instanceof Error) {
+            throw e;
+          }
           // 如果不是JSON，返回HTTP状态错误
           throw new Error(`下载失败，状态码: ${response.status}`);
         }
@@ -194,8 +289,23 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         
         if (jsonData.externalLink) {
           // 如果提供了外部链接，在新窗口打开
+          console.log('收到外部下载链接，尝试打开:', jsonData.externalLink);
           window.open(jsonData.externalLink, '_blank');
           throw new Error('重定向到外部下载链接');
+        }
+        
+        // 特殊处理dlink响应（来自mates API）
+        if (jsonData.dlink && jsonData.status === 'success') {
+          console.log('收到dlink，尝试下载:', jsonData.dlink);
+          // 递归调用自身来处理dlink
+          return await downloadMp3File(jsonData.dlink, videoId);
+        }
+        
+        if (jsonData.status === 'pending') {
+          // 如果转换仍在进行中，等待后重试
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          // 递归重试，最多重试3次
+          return await downloadMp3File(apiUrl, videoId);
         }
         
         throw new Error('API返回了非MP3响应');
@@ -213,6 +323,13 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       
       // 获取Blob数据
       const blob = await response.blob();
+      
+      // 计算下载速度
+      const endTime = Date.now();
+      const downloadTime = (endTime - startTime) / 1000; // 秒
+      const fileSizeMB = blob.size / (1024 * 1024);
+      const speedMBps = fileSizeMB / downloadTime;
+      console.log(`下载完成: ${fileSizeMB.toFixed(2)} MB, 用时: ${downloadTime.toFixed(1)}秒, 速度: ${speedMBps.toFixed(2)} MB/s`);
       
       // 检查blob类型，确保是音频
       if (!blob.type.includes('audio/') && !blob.type.includes('application/octet-stream')) {

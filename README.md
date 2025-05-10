@@ -17,6 +17,7 @@
 - Next.js 15.3.0
 - React
 - Tailwind CSS
+- Y2mate.cc API (无需API密钥)
 - RapidAPI (YouTube to MP3转换)
 - OpenRouter API (GPT-4o视频内容分析)
 
@@ -31,6 +32,7 @@
    - 多语言支持（英文/中文）
 
 2. **技术实现**
+   - 集成Y2mate.cc无密钥API实现可靠的MP3转换 (最新)
    - 使用RapidAPI实现高质量MP3转换
    - 添加视频分析功能（使用OpenRouter API）
    - 实现响应式设计，适配多种设备
@@ -49,8 +51,13 @@ src/
 │   ├── api/
 │   │   ├── analyze/
 │   │   │   └── route.ts         # 视频分析API
-│   │   └── download/
-│   │       └── route.ts         # MP3下载API (RapidAPI)
+│   │   ├── download/
+│   │   │   └── route.ts         # 下载选项管理API
+│   │   └── v1/
+│   │       ├── stream-mp3/      # 主要MP3下载API (RapidAPI)
+│   │       ├── direct-mp3/      # 备选MP3下载API
+│   │       ├── mp3-backup/      # 备用MP3下载API 
+│   │       └── y2mate-mp3/      # Y2mate.cc API集成 (新增)
 │   ├── components/
 │   │   ├── Footer.tsx           # 页脚组件
 │   │   ├── GoogleAnalytics.tsx  # Google分析组件
@@ -98,12 +105,14 @@ npm install
 OPENROUTER_API_KEY=你的OpenRouter_API_KEY
 
 # RapidAPI密钥（用于MP3转换）
-RAPIDAPI_KEY=你的RapidAPI_KEY
+RAPID_API_KEY=你的RapidAPI_KEY
 
 # 网站信息
 NEXT_PUBLIC_SITE_URL=你的网站URL
 NEXT_PUBLIC_SITE_NAME=EZ MP3 Converter
 ```
+
+注意：即使不提供RapidAPI密钥，应用程序也能通过Y2mate.cc API正常运行。
 
 4. 运行开发服务器
 ```bash
@@ -131,25 +140,63 @@ vercel
 
 - Node.js 18.0.0或更高版本
 - 用于访问YouTube的有效网络连接
-- RapidAPI密钥（用于MP3转换）
-- OpenRouter API密钥（用于视频分析）
+- RapidAPI密钥（可选，用于高质量MP3转换）
+- OpenRouter API密钥（可选，用于视频分析）
+
+## 最近更新
+
+- **2023-11-26**: 重大更新：优化下载功能，实现直接MP3下载而非跳转到第三方网站
+- **2023-11-26**: 添加多Y2mate服务支持，包括y2mate.cc、y2mate.tools和y2mate.guru，提高可用性
+- **2023-11-26**: 增强错误处理和自动重试功能，解决502错误问题
+- **2023-11-26**: 优化用户体验，提供下载进度和速度信息
+- **2023-11-26**: 实现自定义Mates API，复制Y2mate.nu的analyzeV2和convertV2功能
+- **2023-11-XX**: 集成Y2mate.cc API，大幅提高下载可靠性，无需API密钥
+- **2023-11-XX**: 优化错误处理，添加自动重试和备选下载机制
+- **2023-11-XX**: 改进用户体验，提供更友好的下载反馈
 
 ## 下载功能实现方式
 
-该应用提供直接MP3下载功能：
+该应用提供直接MP3下载功能，通过多种方式确保高成功率：
 
-1. **直接下载模式**：应用使用专业的YouTube到MP3转换服务，直接将MP3文件流式传输到用户的浏览器，无需跳转到第三方网站。
+1. **多层下载机制**
+   - **自定义Mates API**（最新）：复制并实现Y2mate.nu的核心API
+   - **多Y2mate服务**（新增）：尝试多个Y2mate服务（cc、tools、guru等）
+   - **Y2mate.cc API**：通过analyze和convert两个端点实现无密钥转换
+   - **RapidAPI**（需密钥）：提供高质量转换
+   - **备选和备用API**：确保至少一种方法可用
+   - **第三方网站跳转**：作为最后的备选方案
 
 2. **主要特点**：
    - 无需用户离开当前页面
    - 高质量（最高320kbps）的MP3格式
    - 直接下载到用户设备，无需额外步骤
+   - 智能重试机制，应对服务器错误（如502错误）
    - 可播放性保证，确保文件格式正确
 
 3. **技术实现**：
-   - 使用可靠的DirectDownloader API处理YouTube转MP3
-   - 通过iframe实现后台下载，确保用户体验流畅
-   - 多重下载机制确保高成功率
+   - 优先级下载：尝试多种方法，直到成功
+   - 自适应服务选择：自动选择可用的Y2mate服务
+   - 指数退避重试：遇到临时错误时智能等待并重试
+   - 文件验证确保下载内容是有效MP3
+   - 下载进度和速度统计
+
+## 自定义Mates API功能
+
+我们实现了与Y2mate.nu兼容的API端点：
+
+1. **`/api/mates/analyzeV2/ajax`**
+   - 接收YouTube URL并分析视频信息
+   - 返回视频标题、ID、缩略图和可用格式
+
+2. **`/api/mates/convertV2/index`**
+   - 接收视频ID、格式类型和质量
+   - 返回直接下载链接，无需跳转
+
+3. **优势**：
+   - 完全在我们的服务器上处理，减少对外部服务的依赖
+   - 更高的可靠性和稳定性
+   - 可自定义错误处理和重试逻辑
+   - 使用Y2mate服务作为后端，但提供更好的用户体验
 
 ## 许可证
 
@@ -157,6 +204,7 @@ MIT
 
 ## 致谢
 
+- Y2mate.cc提供无密钥MP3转换服务
 - RapidAPI提供YouTube到MP3转换服务
 - OpenRouter提供AI服务支持
 - 第三方服务提供音频转换功能备用
