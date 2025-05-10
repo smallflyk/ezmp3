@@ -495,22 +495,65 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             </p>
             
             {status === 'success' && downloadUrl && !downloadError && (
-              <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50"
-                >
-                  {downloading ? (translations.downloading || "下载中...") : (translations.download || "下载MP3")}
-                </button>
-                
-                {videoInfo && videoInfo.videoId && (
-                  <a
-                    href={`/api/direct?id=${videoInfo.videoId}`}
-                    className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 text-center"
+              <div className="flex flex-col gap-2">
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50"
+                    title={language === 'zh' ? 
+                      "通过多种API尝试下载MP3文件" : 
+                      "Download MP3 using multiple APIs"}
                   >
-                    {language === 'zh' ? '一键直接下载' : 'Direct Download'}
-                  </a>
+                    {downloading ? (translations.downloading || "下载中...") : (translations.download || "下载MP3")}
+                  </button>
+                  
+                  {videoInfo && videoInfo.videoId && (
+                    <a
+                      href={`/api/direct?id=${videoInfo.videoId}`}
+                      className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 text-center"
+                      title={language === 'zh' ? 
+                        "直接使用convert2mp3s.com下载，更可靠" : 
+                        "Download directly using convert2mp3s.com, more reliable"}
+                    >
+                      {language === 'zh' ? '一键直接下载 ⭐' : 'Direct Download ⭐'}
+                    </a>
+                  )}
+                </div>
+                
+                {downloadError && videoInfo && videoInfo.videoId && (
+                  <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      {language === 'zh' ? '如果上面的按钮不起作用，请尝试以下备用选项：' : 
+                        'If the above buttons don\'t work, try these fallback options:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`/api/fallback?id=${videoInfo.videoId}&service=convert2mp3s`}
+                        className="inline-block px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition duration-300 text-center"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Convert2mp3s
+                      </a>
+                      <a
+                        href={`/api/fallback?id=${videoInfo.videoId}&service=y2mate`}
+                        className="inline-block px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition duration-300 text-center"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Y2mate
+                      </a>
+                      <a
+                        href={`/api/fallback?id=${videoInfo.videoId}&service=yt5s`}
+                        className="inline-block px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition duration-300 text-center"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        YT5s
+                      </a>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

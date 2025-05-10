@@ -139,14 +139,49 @@ export async function GET(request: NextRequest) {
     const title = titleMatch ? titleMatch[1].trim() : `YouTube 视频 ${videoId}`;
     
     // 在结果中查找MP3下载选项和ID
-    const mp3QualityValue = bitrate === '320' ? 'mp3128' : 'mp3128'; // y2mate.cc 通常只提供128kbps
-    const downloadIdMatch = analyzeResult.result.match(new RegExp(`data-id="([^"]+)"[^>]*data-type="${mp3QualityValue}"`));
+    // 尝试多种正则表达式模式来适应可能的页面结构变化
+    let downloadId = null;
+    const mp3QualityValue = bitrate === '320' ? 'mp3128' : 'mp3128'; // y2mate 通常只提供128kbps
     
-    if (!downloadIdMatch || !downloadIdMatch[1]) {
+    // 模式1: 标准模式
+    const pattern1 = new RegExp(`data-id="([^"]+)"[^>]*data-type="${mp3QualityValue}"`);
+    const match1 = analyzeResult.result.match(pattern1);
+    if (match1 && match1[1]) {
+      downloadId = match1[1];
+    }
+    
+    // 模式2: 简化模式
+    if (!downloadId) {
+      const pattern2 = /data-id="([^"]+)"/;
+      const match2 = analyzeResult.result.match(pattern2);
+      if (match2 && match2[1]) {
+        downloadId = match2[1];
+      }
+    }
+    
+    // 模式3: 属性顺序可能改变
+    if (!downloadId) {
+      const pattern3 = new RegExp(`data-type="${mp3QualityValue}"[^>]*data-id="([^"]+)"`);
+      const match3 = analyzeResult.result.match(pattern3);
+      if (match3 && match3[1]) {
+        downloadId = match3[1];
+      }
+    }
+    
+    // 模式4: 查找任何MP3类型
+    if (!downloadId) {
+      const pattern4 = /data-id="([^"]+)"[^>]*data-type="(mp3[^"]*)"/;
+      const match4 = analyzeResult.result.match(pattern4);
+      if (match4 && match4[1]) {
+        downloadId = match4[1];
+      }
+    }
+    
+    if (!downloadId) {
+      console.error('无法找到MP3下载ID，HTML结构可能已变化:', analyzeResult.result);
       throw new Error('无法找到MP3下载ID');
     }
     
-    const downloadId = downloadIdMatch[1];
     console.log(`找到MP3下载ID: ${downloadId}, 标题: ${title}`);
     
     // 第二步：获取转换链接
