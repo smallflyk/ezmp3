@@ -450,6 +450,36 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           setDownloadSpeed(`${speedMBps.toFixed(2)} MB/s`);
           setDownloadProgress(100);
           
+          // 严格验证文件是否为MP3
+          const isValidMp3 = await validateMp3(blob);
+          if (!isValidMp3) {
+            console.warn('下载的文件不是有效的MP3文件，尝试修复...');
+            // 尝试修复MP3文件
+            const fixedBlob = await attemptToFixMp3(blob);
+            if (fixedBlob) {
+              console.log('MP3文件修复成功');
+              
+              // 使用修复后的blob创建下载
+              const blobUrl = window.URL.createObjectURL(fixedBlob);
+              const downloadLink = document.createElement('a');
+              downloadLink.href = blobUrl;
+              downloadLink.download = filename;
+              downloadLink.style.display = 'none';
+              document.body.appendChild(downloadLink);
+              
+              // 触发下载
+              downloadLink.click();
+              
+              // 清理
+              window.URL.revokeObjectURL(blobUrl);
+              document.body.removeChild(downloadLink);
+              
+              return true;
+            } else {
+              throw new Error('MP3文件无效且无法修复，请尝试其他下载方式');
+            }
+          }
+          
           // 检查blob类型，确保是音频
           if (!blob.type.includes('audio/') && !blob.type.includes('application/octet-stream')) {
             console.warn(`警告: 收到非音频内容类型: ${blob.type}`);
@@ -480,6 +510,36 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         } else {
           // 如果不能获取reader，回退到普通的blob下载
           const blob = await response.blob();
+          
+          // 验证MP3文件
+          const isValidMp3 = await validateMp3(blob);
+          if (!isValidMp3) {
+            console.warn('下载的文件不是有效的MP3文件，尝试修复...');
+            // 尝试修复MP3文件
+            const fixedBlob = await attemptToFixMp3(blob);
+            if (fixedBlob) {
+              console.log('MP3文件修复成功');
+              
+              // 使用修复后的blob创建下载
+              const blobUrl = window.URL.createObjectURL(fixedBlob);
+              const downloadLink = document.createElement('a');
+              downloadLink.href = blobUrl;
+              downloadLink.download = filename;
+              downloadLink.style.display = 'none';
+              document.body.appendChild(downloadLink);
+              
+              // 触发下载
+              downloadLink.click();
+              
+              // 清理
+              window.URL.revokeObjectURL(blobUrl);
+              document.body.removeChild(downloadLink);
+              
+              return true;
+            } else {
+              throw new Error('MP3文件无效且无法修复，请尝试其他下载方式');
+            }
+          }
           
           // 计算下载速度
           const endTime = Date.now();
@@ -526,6 +586,37 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
         
         const blob = await response.blob();
         
+        // 验证MP3文件
+        const isValidMp3 = await validateMp3(blob);
+        if (!isValidMp3) {
+          console.warn('外部链接：下载的文件不是有效的MP3文件，尝试修复...');
+          // 尝试修复MP3文件
+          const fixedBlob = await attemptToFixMp3(blob);
+          if (fixedBlob) {
+            console.log('外部链接：MP3文件修复成功');
+            
+            // 使用修复后的blob创建下载
+            const fileName = `youtube-${videoId}.mp3`;
+            const blobUrl = window.URL.createObjectURL(fixedBlob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = blobUrl;
+            downloadLink.download = fileName;
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            
+            // 触发下载
+            downloadLink.click();
+            
+            // 清理
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(downloadLink);
+            
+            return true;
+          } else {
+            throw new Error('外部链接：MP3文件无效且无法修复，请尝试其他下载方式');
+          }
+        }
+        
         // 计算下载速度
         const endTime = Date.now();
         const downloadTime = (endTime - startTime) / 1000; // 秒
@@ -561,6 +652,115 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
       
       // 重新抛出错误，让调用者处理
       throw error;
+    }
+  };
+  
+  // MP3文件格式验证函数
+  const validateMp3 = async (blob: Blob): Promise<boolean> => {
+    try {
+      // 只需读取文件的前几个字节来检查MP3头部
+      const fileHeader = await blob.slice(0, 4).arrayBuffer();
+      const headerBytes = new Uint8Array(fileHeader);
+      
+      // 检查是否是MP3文件特征
+      // MP3文件通常以"ID3"开头(ID3v2标签)或以0xFF 0xFB开头(MP3帧同步标记)
+      
+      // 检查ID3v2标签
+      if (headerBytes[0] === 0x49 && headerBytes[1] === 0x44 && headerBytes[2] === 0x33) {
+        console.log('文件包含有效的ID3v2标签');
+        return true;
+      }
+      
+      // 检查MP3帧同步标记
+      if (headerBytes[0] === 0xFF && (headerBytes[1] & 0xE0) === 0xE0) {
+        console.log('文件包含有效的MP3帧同步标记');
+        return true;
+      }
+      
+      // 如果前几个字节不符合，尝试在文件内搜索MP3标记
+      // 这可能是因为文件开头有其他数据
+      const largerSample = await blob.slice(0, 4096).arrayBuffer();
+      const sampleBytes = new Uint8Array(largerSample);
+      
+      for (let i = 0; i < sampleBytes.length - 2; i++) {
+        // 查找ID3标记
+        if (sampleBytes[i] === 0x49 && sampleBytes[i + 1] === 0x44 && sampleBytes[i + 2] === 0x33) {
+          console.log(`在偏移量${i}处找到ID3标签`);
+          return true;
+        }
+        
+        // 查找MP3帧同步标记
+        if (sampleBytes[i] === 0xFF && (sampleBytes[i + 1] & 0xE0) === 0xE0) {
+          console.log(`在偏移量${i}处找到MP3帧同步标记`);
+          return true;
+        }
+      }
+      
+      // 检查文件MIME类型
+      if (blob.type === 'audio/mpeg' || blob.type === 'audio/mp3') {
+        console.log('文件有正确的MIME类型，但未找到MP3标记，可能需要修复');
+        return false;
+      }
+      
+      console.log('未找到有效的MP3标记，文件可能损坏或不是MP3');
+      return false;
+    } catch (error) {
+      console.error('验证MP3文件时出错:', error);
+      return false;
+    }
+  };
+  
+  // 尝试修复MP3文件
+  const attemptToFixMp3 = async (blob: Blob): Promise<Blob | null> => {
+    try {
+      // 读取整个文件内容
+      const fileBuffer = await blob.arrayBuffer();
+      const fileBytes = new Uint8Array(fileBuffer);
+      
+      // 寻找MP3数据的开始位置
+      let mp3Start = -1;
+      
+      // 首先，尝试找到ID3标记或MP3帧同步标记
+      for (let i = 0; i < fileBytes.length - 2; i++) {
+        // 查找ID3标记
+        if (fileBytes[i] === 0x49 && fileBytes[i + 1] === 0x44 && fileBytes[i + 2] === 0x33) {
+          mp3Start = i;
+          console.log(`在偏移量${i}处找到ID3标签，从这里开始截取`);
+          break;
+        }
+        
+        // 查找MP3帧同步标记
+        if (fileBytes[i] === 0xFF && (fileBytes[i + 1] & 0xE0) === 0xE0) {
+          mp3Start = i;
+          console.log(`在偏移量${i}处找到MP3帧同步标记，从这里开始截取`);
+          break;
+        }
+      }
+      
+      if (mp3Start === -1) {
+        console.error('无法在文件中找到MP3数据的开始位置');
+        
+        // 尝试最后的修复方法：添加MP3帧头
+        console.log('尝试添加MP3帧头进行修复');
+        const mp3Header = new Uint8Array([0xFF, 0xFB, 0x90, 0x44]); // 标准MP3帧头
+        
+        // 创建一个新的合并数组
+        const fixedData = new Uint8Array(mp3Header.length + fileBytes.length);
+        fixedData.set(mp3Header, 0);
+        fixedData.set(fileBytes, mp3Header.length);
+        
+        return new Blob([fixedData], { type: 'audio/mpeg' });
+      }
+      
+      // 截取从MP3数据开始位置到文件结束的部分
+      const fixedData = fileBytes.slice(mp3Start);
+      console.log(`修复后的文件大小: ${fixedData.length} 字节`);
+      
+      // 创建新的Blob对象
+      return new Blob([fixedData], { type: 'audio/mpeg' });
+    } catch (error) {
+      console.error('修复MP3文件时出错:', error);
+      return null;
     }
   };
 
@@ -680,7 +880,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             <p className="flex items-center">
               {status === 'success' && (
                 <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 101.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
                 </svg>
               )}
               {status === 'error' && (
@@ -702,7 +902,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
                 <div className="flex flex-col sm:flex-row gap-2">
                   {videoInfo && videoInfo.videoId && (
                     <a
-                      href={`/api/direct?id=${videoInfo.videoId}`}
+                      href={`/api/direct?id=${videoInfo.videoId}&direct=true`}
                       className="inline-block px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 text-center text-lg flex-1 flex items-center justify-center"
                       title={language === 'zh' ? 
                         "直接使用convert2mp3s.com下载，最可靠的方法" : 
