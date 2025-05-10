@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractVideoId, generateSignature, buildAnalyzeResultHtml } from '@/lib/youtube';
 import { YouTubeService } from '@/lib/youtube-service';
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export async function POST(request: NextRequest) {
   try {
     // 解析表单数据
@@ -25,7 +28,22 @@ export async function POST(request: NextRequest) {
     }
     
     // 获取视频信息
-    const videoInfo = await YouTubeService.getVideoInfo(videoId);
+    let videoInfo;
+    try {
+      videoInfo = await YouTubeService.getVideoInfo(videoId);
+    } catch (error) {
+      console.error('获取视频信息失败:', error);
+      // 使用默认信息
+      videoInfo = {
+        title: `YouTube Video ${videoId}`,
+        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        duration: 240,
+        formats: [
+          { type: 'mp3-128', quality: '128', size: '~3.5 MB' },
+          { type: 'mp3-320', quality: '320', size: '~9.0 MB' }
+        ]
+      };
+    }
     
     // 生成签名
     const signature = generateSignature(videoId);

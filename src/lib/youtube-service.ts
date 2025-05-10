@@ -24,14 +24,21 @@ export const YouTubeService = {
   // 获取视频信息
   async getVideoInfo(videoId: string): Promise<VideoInfo> {
     try {
-      // 使用YouTube oEmbed API获取基本信息
+      // 使用YouTube oEmbed API获取基本信息，增加超时设置
       const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
-      const oembedResponse = await axios.get(oembedUrl);
       
-      // 使用YouTube API获取视频详情（这里我们用简化的方法，实际中可能需要API密钥）
-      // 这里我们模拟一些信息
-      const title = oembedResponse.data.title || `YouTube Video ${videoId}`;
-      const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      // 使用默认标题和缩略图，防止API超时导致整个流程失败
+      let title = `YouTube Video ${videoId}`;
+      let thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      
+      try {
+        // 设置5秒超时，避免长时间等待
+        const oembedResponse = await axios.get(oembedUrl, { timeout: 5000 });
+        title = oembedResponse.data.title || title;
+      } catch (error) {
+        console.warn('获取oEmbed信息失败，使用默认标题:', error);
+        // 继续使用默认标题
+      }
       
       // 模拟视频时长，实际中应从API获取
       const duration = 240; // 假设4分钟
@@ -120,6 +127,6 @@ export const YouTubeService = {
     const uniqueId = Date.now().toString(36) + Math.random().toString(36).substring(2);
     
     // 返回动态生成的下载链接
-    return `${protocol}://${host}/api/download/${uniqueId}/${encodeURIComponent(filename)}`;
+    return `${protocol}://${host}/api/direct?id=${filename.replace('.mp3', '')}`;
   }
 }; 

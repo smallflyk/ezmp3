@@ -131,53 +131,33 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
   const handleDownload = async () => {
     if (!videoInfo || !url) return;
     setDownloading(true);
+    setDownloadError(null);
 
     try {
+      // 记录尝试过的方法，避免重复尝试
+      const attemptedMethods = new Set();
+      
       // 首先尝试使用y2mate API直接下载（作为首选方式）
+      console.log('尝试使用Y2mate API下载...');
       const y2mateApiUrl = `/api/v1/y2mate-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`;
-      const isY2mateSuccess = await downloadMp3File(y2mateApiUrl, videoInfo.videoId);
+      attemptedMethods.add('y2mate');
       
-      if (isY2mateSuccess) {
-        setStatus('success');
-        return;
-      }
-
-      // 如果y2mate下载失败，尝试其他API方法
-      // 按照优先级排序
-      const apiUrls = [
-        `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
-        `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}`,
-        `/api/v1/mp3-backup?id=${videoInfo.videoId}&bitrate=${bitrate}`
-      ];
-
-      let downloadSuccess = false;
-      for (const apiUrl of apiUrls) {
-        try {
-          const success = await downloadMp3File(apiUrl, videoInfo.videoId);
-          if (success) {
-            downloadSuccess = true;
-            break;
-          }
-        } catch (err) {
-          console.error(`API ${apiUrl} 下载失败:`, err);
-          // 继续尝试下一个API
+      try {
+        const isY2mateSuccess = await downloadMp3File(y2mateApiUrl, videoInfo.videoId);
+        if (isY2mateSuccess) {
+          console.log('Y2mate API下载成功');
+          setStatus('success');
+          return;
         }
+      } catch (y2mateError) {
+        console.error('Y2mate API下载失败:', y2mateError);
+        // 继续尝试其他方法
       }
 
-      if (downloadSuccess) {
-        setStatus('success');
-      } else {
-        // 如果所有API都失败，告知用户并提供官方转换接口
-        throw new Error('所有直接下载方法都失败，请尝试我们的在线转换器');
-      }
-    } catch (error) {
-      console.error('下载错误:', error);
-      setStatus('error');
-      setDownloadError(
-        `下载失败: ${error instanceof Error ? error.message : '未知错误'}`
-      );
+      // 尝试mates API (Y2mate.nu克隆)
+      console.log('尝试使用Mates API下载...');
+      attemptedMethods.add('mates');
       
-      // 当直接下载失败时，作为后备方案使用自定义mates API
       try {
         // 首先通过analyze API获取视频信息
         const analyzeResponse = await fetch('/api/mates/analyzeV2/ajax', {
@@ -214,6 +194,7 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
                 // 通过生成的dlink下载文件
                 const dlinkSuccess = await downloadMp3File(convertData.dlink, videoInfo.videoId);
                 if (dlinkSuccess) {
+                  console.log('Mates API下载成功');
                   setStatus('success');
                   return;
                 }
@@ -222,7 +203,73 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
           }
         }
       } catch (matesError) {
-        console.error('Mates API错误:', matesError);
+        console.error('Mates API下载失败:', matesError);
+        // 继续尝试其他方法
+      }
+
+      // 如果y2mate和mates API下载失败，尝试其他API方法
+      // 按照优先级排序
+      const apiUrls = [
+        { name: 'new-mp3', url: `/api/v1/new-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}` },
+        { name: 'direct-mp3', url: `/api/v1/direct-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}` },
+        { name: 'stream-mp3', url: `/api/v1/stream-mp3?url=${encodeURIComponent(url)}&bitrate=${bitrate}` },
+        { name: 'mp3-backup', url: `/api/v1/mp3-backup?id=${videoInfo.videoId}&bitrate=${bitrate}` }
+      ];
+
+      let downloadSuccess = false;
+      for (const api of apiUrls) {
+        if (attemptedMethods.has(api.name)) continue;
+        attemptedMethods.add(api.name);
+        
+        console.log(`尝试使用${api.name} API下载...`);
+        try {
+          const success = await downloadMp3File(api.url, videoInfo.videoId);
+          if (success) {
+            console.log(`${api.name} API下载成功`);
+            downloadSuccess = true;
+            break;
+          }
+        } catch (err) {
+          console.error(`API ${api.name} 下载失败:`, err);
+          // 继续尝试下一个API
+        }
+      }
+
+      if (downloadSuccess) {
+        setStatus('success');
+      } else {
+        // 如果所有API都失败，最后尝试使用直接下载API
+        console.log('所有API下载失败，尝试使用直接下载API...');
+        
+        if (!attemptedMethods.has('direct')) {
+          attemptedMethods.add('direct');
+          try {
+            // 尝试调用/api/direct路由来重定向用户
+            const directApiUrl = `/api/direct?id=${videoInfo.videoId}`;
+            window.open(directApiUrl, '_blank');
+            setStatus('success');
+            return;
+          } catch (directError) {
+            console.error('直接下载API失败:', directError);
+          }
+        }
+        
+        // 如果所有方法都失败，告知用户并提供备用转换接口
+        throw new Error('所有下载方法都失败，请尝试"一键直接下载"按钮');
+      }
+    } catch (error) {
+      console.error('下载错误:', error);
+      setStatus('error');
+      setDownloadError(
+        `下载失败: ${error instanceof Error ? error.message : '未知错误'}`
+      );
+      
+      // 尝试打开fallback API作为最后的备选方案
+      try {
+        const fallbackUrl = `/api/fallback?id=${videoInfo.videoId}`;
+        window.open(fallbackUrl, '_blank');
+      } catch (fallbackError) {
+        console.error('Fallback API也失败了:', fallbackError);
       }
     } finally {
       setDownloading(false);
@@ -495,71 +542,53 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             </p>
             
             {status === 'success' && downloadUrl && !downloadError && (
-              <div className="flex flex-col gap-2">
-                <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                  <button
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    className="inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50"
-                    title={language === 'zh' ? 
-                      "通过多种API尝试下载MP3文件" : 
-                      "Download MP3 using multiple APIs"}
-                  >
-                    {downloading ? (translations.downloading || "下载中...") : (translations.download || "下载MP3")}
-                  </button>
-                  
+              <div className="mt-4 flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {videoInfo && videoInfo.videoId && (
                     <a
                       href={`/api/direct?id=${videoInfo.videoId}`}
-                      className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 text-center"
+                      className="inline-block px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 text-center text-lg flex-1 flex items-center justify-center"
                       title={language === 'zh' ? 
-                        "直接使用convert2mp3s.com下载，更可靠" : 
-                        "Download directly using convert2mp3s.com, more reliable"}
+                        "直接使用convert2mp3s.com下载，最可靠的方法" : 
+                        "Download directly using convert2mp3s.com, most reliable method"}
                     >
-                      {language === 'zh' ? '一键直接下载 ⭐' : 'Direct Download ⭐'}
+                      {language === 'zh' ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                          </svg>
+                          一键直接下载 ⭐
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center">
+                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                          </svg>
+                          Direct Download ⭐
+                        </span>
+                      )}
                     </a>
                   )}
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="inline-block px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50 text-sm"
+                    title={language === 'zh' ? 
+                      "使用原有API下载，可能不稳定" : 
+                      "Download using original APIs, may be unstable"}
+                  >
+                    {downloading ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {translations.downloading || "下载中..."}
+                      </span>
+                    ) : (language === 'zh' ? '尝试其他下载方式' : 'Try alternative download')}
+                  </button>
                 </div>
-                
-                {downloadError && videoInfo && videoInfo.videoId && (
-                  <div className="mt-2 flex flex-col sm:flex-row gap-2">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                      {language === 'zh' ? '如果上面的按钮不起作用，请尝试以下备用选项：' : 
-                        'If the above buttons don\'t work, try these fallback options:'}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={`/api/fallback?id=${videoInfo.videoId}&service=convert2mp3s`}
-                        className="inline-block px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition duration-300 text-center"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Convert2mp3s
-                      </a>
-                      <a
-                        href={`/api/fallback?id=${videoInfo.videoId}&service=y2mate`}
-                        className="inline-block px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition duration-300 text-center"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Y2mate
-                      </a>
-                      <a
-                        href={`/api/fallback?id=${videoInfo.videoId}&service=yt5s`}
-                        className="inline-block px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-lg transition duration-300 text-center"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        YT5s
-                      </a>
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
-            
-            {downloadError && (
-              <p className="mt-2 text-red-500">{downloadError}</p>
             )}
           </div>
         )}

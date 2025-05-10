@@ -12,6 +12,11 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@types/uuid": "^10.0.0",
+    "axios": "^1.9.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3",
     "next": "15.3.0",
     "openai": "^4.93.0",
     "react": "^19.0.0",
@@ -29,5 +34,18 @@
     "eslint-config-next": "15.3.0",
     "tailwindcss": "^4",
     "typescript": "5.8.3"
-  }
+  },
+  "description": "这是一个基于Next.js构建的YouTube到MP3转换器应用程序，使用RapidAPI提供YouTube视频转MP3服务，并使用OpenRouter API进行视频分析，提供高品质的MP3下载功能。",
+  "main": "next.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smallflyk/ezmp3.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/smallflyk/ezmp3/issues"
+  },
+  "homepage": "https://github.com/smallflyk/ezmp3#readme"
 }

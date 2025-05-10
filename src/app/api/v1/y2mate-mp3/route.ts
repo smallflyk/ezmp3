@@ -177,6 +177,42 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // 模式5: 新增 - 查找基于类名的模式
+    if (!downloadId) {
+      const pattern5 = /class="btn btn-success"[^>]*data-id="([^"]+)"/;
+      const match5 = analyzeResult.result.match(pattern5);
+      if (match5 && match5[1]) {
+        downloadId = match5[1];
+      }
+    }
+    
+    // 模式6: 新增 - 基于特定MP3容器的模式
+    if (!downloadId) {
+      const pattern6 = /<div[^>]*class="[^"]*mp3[^"]*"[^>]*>[^<]*<button[^>]*data-id="([^"]+)"/;
+      const match6 = analyzeResult.result.match(pattern6);
+      if (match6 && match6[1]) {
+        downloadId = match6[1];
+      }
+    }
+    
+    // 模式7: 新增 - 搜索任何包含mp3的按钮
+    if (!downloadId) {
+      const pattern7 = /<button[^>]*data-id="([^"]+)"[^>]*>[^<]*mp3/i;
+      const match7 = analyzeResult.result.match(pattern7);
+      if (match7 && match7[1]) {
+        downloadId = match7[1];
+      }
+    }
+    
+    // 模式8: 新增 - 提取data-id后的任何值
+    if (!downloadId) {
+      const pattern8 = /data-id="([a-zA-Z0-9_-]+)"/;
+      const match8 = analyzeResult.result.match(pattern8);
+      if (match8 && match8[1]) {
+        downloadId = match8[1];
+      }
+    }
+    
     if (!downloadId) {
       console.error('无法找到MP3下载ID，HTML结构可能已变化:', analyzeResult.result);
       throw new Error('无法找到MP3下载ID');
