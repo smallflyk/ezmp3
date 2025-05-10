@@ -495,13 +495,24 @@ export default function YoutubeConverter({ translations }: ConverterProps) {
             </p>
             
             {status === 'success' && downloadUrl && !downloadError && (
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="mt-4 inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50"
-              >
-                {downloading ? (translations.downloading || "Downloading...") : (translations.download || "Download MP3")}
-              </button>
+              <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-50"
+                >
+                  {downloading ? (translations.downloading || "下载中...") : (translations.download || "下载MP3")}
+                </button>
+                
+                {videoInfo && videoInfo.videoId && (
+                  <a
+                    href={`/api/direct?id=${videoInfo.videoId}`}
+                    className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-300 text-center"
+                  >
+                    {language === 'zh' ? '一键直接下载' : 'Direct Download'}
+                  </a>
+                )}
+              </div>
             )}
             
             {downloadError && (
